@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro de Proveedores</title>
+<style>
+  :root {
+    --azul: #0b5d85;
+    --azul-claro: #0e7bab;
+    --rojo-ec: #e3241a;
+    --gris: #f4f6f8;
+    --texto: #22303f;
+    --borde: #d5dce3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: var(--gris);
+    margin: 0;
+    padding: 24px 16px;
+    color: var(--texto);
+  }
+  .contenedor {
+    position: relative;
+    max-width: 560px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    padding: 0 30px 32px 30px;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.07);
+    overflow: hidden;
+  }
+
+  /* Listón bicolor: sella el sistema como una carta membretada de las dos empresas */
+  .liston {
+    height: 5px;
+    margin: 0 -30px;
+    background: linear-gradient(to right, var(--azul) 0%, var(--azul) 47%, var(--rojo-ec) 53%, var(--rojo-ec) 100%);
+  }
+
+  /* Membrete: logos como encabezado de carta, no como tarjeta aparte */
+  .membrete {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 22px 0 18px 0;
+    border-bottom: 1px solid var(--borde);
+    margin-bottom: 22px;
+  }
+  .membrete-empresa { display: flex; flex-direction: column; gap: 8px; }
+  .membrete-empresa.hps { align-items: flex-start; }
+  .membrete-empresa.ec { align-items: flex-end; }
+  .membrete-empresa img.logo-principal { height: 46px; width: auto; display: block; }
+  .membrete-empresa img.logo-ec { height: 46px; width: auto; display: block; border-radius: 5px; }
+  .marcas-representadas { display: flex; align-items: center; gap: 8px; }
+  .marcas-representadas .etiqueta {
+    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #99a5b0; font-weight: 700; white-space: nowrap;
+  }
+  .marcas-representadas img { height: 42px; width: auto; }
+
+  @media (max-width: 480px) {
+    .membrete { justify-content: center; text-align: center; }
+    .membrete-empresa.hps, .membrete-empresa.ec { align-items: center; }
+  }
+
+  /* Esquinas tipo mira, tomadas del propio ícono de High Precision Supply */
+  .mira {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--azul-claro);
+    opacity: 0.45;
+    pointer-events: none;
+  }
+  .mira.tl { top: 14px; left: 14px; border-right: none; border-bottom: none; }
+  .mira.tr { top: 14px; right: 14px; border-left: none; border-bottom: none; }
+  .mira.bl { bottom: 14px; left: 14px; border-right: none; border-top: none; }
+  .mira.br { bottom: 14px; right: 14px; border-left: none; border-top: none; }
+
+  .eyebrow {
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--azul-claro);
+    font-weight: 700;
+    margin: 0 0 6px 0;
+    font-family: "SF Mono", "Courier New", monospace;
+  }
+  h1 {
+    font-size: 1.4rem;
+    color: var(--azul);
+    margin-bottom: 4px;
+  }
+  p.subtitulo {
+    color: #5b6b7a;
+    margin-top: 0;
+    margin-bottom: 28px;
+    font-size: 0.95rem;
+  }
+  label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-top: 16px;
+    margin-bottom: 6px;
+  }
+  label .opcional {
+    font-weight: 400;
+    color: #8b98a5;
+  }
+  input, select {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--azul-claro);
+  }
+  button {
+    width: 100%;
+    margin-top: 28px;
+    padding: 13px;
+    background: var(--azul);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; cursor: default; }
+  button:hover:not(:disabled) { background: var(--azul-claro); }
+  .mensaje {
+    margin-top: 20px;
+    padding: 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    display: none;
+  }
+  .mensaje.exito { background: #e7f6ec; color: #1e6b3a; display: block; }
+  .mensaje.error { background: #fbe9e9; color: #a3272c; display: block; }
+</style>
+</head>
+<body>
+
+<div class="contenedor">
+  <div class="mira tl"></div>
+  <div class="mira tr"></div>
+  <div class="mira bl"></div>
+  <div class="mira br"></div>
+
+  <div class="liston"></div>
+
+  <div class="membrete">
+    <div class="membrete-empresa hps">
+      <img class="logo-principal" src="high-precision-supply-logo.png" alt="High Precision Supply">
+      <div class="marcas-representadas">
+        <span class="etiqueta">Marcas:</span>
+        <img src="tennant-logo.png" alt="Tennant">
+        <img src="ipc-logo.png" alt="IPC by Tennant Company">
+      </div>
+    </div>
+    <div class="membrete-empresa ec">
+      <img class="logo-ec" src="express-care-logo.png" alt="Express Care by Valvoline">
+    </div>
+  </div>
+
+  <p class="eyebrow">Reg. Proveedores · Alta</p>
+  <h1>Registro de Proveedores</h1>
+  <p class="subtitulo">Completa tus datos. Una vez aprobado tu registro, recibirás por correo tu acceso personal para subir facturas.</p>
+
+  <form id="formRegistro">
+    <label>Nombre / Razón social *</label>
+    <input type="text" id="nombre" required>
+
+    <label>RFC *</label>
+    <input type="text" id="rfc" required>
+
+    <label>¿A qué empresa facturas? *</label>
+    <select id="empresa" required>
+      <option value="">Selecciona...</option>
+      <option value="KARALV">KARALV (Express Care by Valvoline)</option>
+      <option value="VENTURA">Ventura Distribución y Servicios</option>
+      <option value="AMBAS">Ambas empresas</option>
+    </select>
+
+    <label>Nombre comercial <span class="opcional">(opcional)</span></label>
+    <input type="text" id="nombreComercial">
+
+    <label>Teléfono *</label>
+    <input type="tel" id="telefono" required>
+
+    <label>Correo *</label>
+    <input type="email" id="correo" required>
+
+    <label>Forma de pago Acordada *</label>
+    <select id="formaPago" required>
+      <option value="">Selecciona...</option>
+      <option value="Transferencia">Transferencia</option>
+      <option value="Cheque">Cheque</option>
+      <option value="Efectivo">Efectivo</option>
+    </select>
+
+    <button type="submit" id="btnEnviar">Enviar registro</button>
+  </form>
+
+  <div id="mensaje" class="mensaje"></div>
+</div>
+
+<script>
+  const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbzOwIrWSVfgcvoQa_ZtGLITvtEPQO_pzy5EvOgaLC_HHYKD-O0rT1_O8H5M3dGC9NYNmQ/exec';
+
+  const form = document.getElementById('formRegistro');
+  const btn = document.getElementById('btnEnviar');
+  const mensaje = document.getElementById('mensaje');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+    mensaje.style.display = 'none';
+
+    const datos = {
+      action: 'registrarProveedor',
+      nombre: document.getElementById('nombre').value.trim(),
+      rfc: document.getElementById('rfc').value.trim(),
+      empresa: document.getElementById('empresa').value,
+      nombreComercial: document.getElementById('nombreComercial').value.trim(),
+      telefono: document.getElementById('telefono').value.trim(),
+      correo: document.getElementById('correo').value.trim(),
+      formaPago: document.getElementById('formaPago').value
+    };
+
+    try {
+      const resp = await fetch(URL_APPS_SCRIPT, {
+        method: 'POST',
+        body: JSON.stringify(datos)
+      });
+      const resultado = await resp.json();
+
+      if (resultado.ok) {
+        mensaje.className = 'mensaje exito';
+        mensaje.textContent = 'Registro recibido correctamente. Te avisaremos por correo cuando sea aprobado.';
+        form.reset();
+      } else {
+        mensaje.className = 'mensaje error';
+        mensaje.textContent = resultado.error || 'Ocurrió un error, intenta de nuevo.';
+      }
+    } catch (err) {
+      mensaje.className = 'mensaje error';
+      mensaje.textContent = 'No se pudo conectar con el sistema. Intenta más tarde.';
+    }
+
+    mensaje.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Enviar registro';
+  });
+</script>
+
+</body>
+</html>
