@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal Interno - Aprobación de Proveedores</title>
+<style>
+  :root {
+    --azul: #0b5d85;
+    --azul-claro: #0e7bab;
+    --rojo-ec: #e3241a;
+    --gris: #f4f6f8;
+    --texto: #22303f;
+    --borde: #d5dce3;
+    --verde: #1e6b3a;
+    --rojo: #a3272c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: var(--gris);
+    margin: 0;
+    padding: 24px 16px;
+    color: var(--texto);
+  }
+  .contenedor { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; color: var(--azul); margin-bottom: 4px; }
+  p.subtitulo { color: #5b6b7a; margin-top: 0; margin-bottom: 24px; font-size: 0.95rem; }
+
+  /* Listón bicolor + esquinas tipo mira (tomadas del ícono de High Precision Supply) */
+  .liston {
+    height: 5px;
+    margin: 0 -30px;
+    background: linear-gradient(to right, var(--azul) 0%, var(--azul) 47%, var(--rojo-ec) 53%, var(--rojo-ec) 100%);
+  }
+  .mira {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--azul-claro);
+    opacity: 0.45;
+    pointer-events: none;
+  }
+  .mira.tl { top: 14px; left: 14px; border-right: none; border-bottom: none; }
+  .mira.tr { top: 14px; right: 14px; border-left: none; border-bottom: none; }
+  .mira.bl { bottom: 14px; left: 14px; border-right: none; border-top: none; }
+  .mira.br { bottom: 14px; right: 14px; border-left: none; border-top: none; }
+
+  /* Membrete: logos como encabezado de carta */
+  .membrete {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 20px 0 16px 0;
+    border-bottom: 1px solid var(--borde);
+    margin-bottom: 20px;
+  }
+  .membrete-empresa { display: flex; flex-direction: column; gap: 7px; }
+  .membrete-empresa.hps { align-items: flex-start; }
+  .membrete-empresa.ec { align-items: flex-end; }
+  .membrete-empresa img.logo-principal { height: 40px; width: auto; display: block; }
+  .membrete-empresa img.logo-ec { height: 40px; width: auto; display: block; border-radius: 5px; }
+  .marcas-representadas { display: flex; align-items: center; gap: 7px; }
+  .marcas-representadas .etiqueta {
+    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #99a5b0; font-weight: 700; white-space: nowrap;
+  }
+  .marcas-representadas img { height: 36px; width: auto; }
+
+  @media (max-width: 480px) {
+    .membrete { justify-content: center; text-align: center; }
+    .membrete-empresa.hps, .membrete-empresa.ec { align-items: center; }
+  }
+
+  #pantallaClave {
+    position: relative;
+    overflow: hidden;
+    background: #fff; border-radius: 12px; padding: 0 28px 32px 28px;
+    max-width: 400px; margin: 40px auto; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  }
+  #pantallaClave h1 { text-align: center; }
+  #pantallaClave input {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--borde);
+    border-radius: 8px; font-size: 1rem; margin-top: 8px;
+  }
+  #pantallaClave button {
+    width: 100%; margin-top: 16px; padding: 12px; background: var(--azul);
+    color: #fff; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;
+  }
+
+  button:disabled { opacity: 0.55; cursor: default !important; }
+
+  #panel { display: none; position: relative; overflow: hidden; background: #fff; border-radius: 12px; padding: 0 30px 32px 30px; box-shadow: 0 2px 14px rgba(0,0,0,0.07); }
+
+  .tarjeta {
+    background: #fff; border-radius: 10px; padding: 20px;
+    margin-bottom: 16px; box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  }
+  .tarjeta h3 { margin: 0 0 4px 0; color: var(--azul); }
+  .tarjeta .rfc { color: #5b6b7a; font-size: 0.9rem; margin-bottom: 12px; }
+  .fila-datos { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.88rem; margin-bottom: 14px; }
+  .fila-datos span { color: #5b6b7a; }
+  .fila-datos b { color: var(--texto); }
+
+  .campos-aprobar { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .campos-aprobar div { flex: 1; min-width: 140px; }
+  .campos-aprobar label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; }
+  .campos-aprobar input {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--borde);
+    border-radius: 6px; font-size: 0.95rem;
+  }
+
+  .botones { display: flex; gap: 10px; }
+  .botones button {
+    flex: 1; padding: 10px; border: none; border-radius: 8px;
+    font-weight: 600; cursor: pointer; font-size: 0.9rem;
+  }
+  .btn-aprobar { background: var(--verde); color: #fff; }
+  .btn-rechazar { background: #fff; color: var(--rojo); border: 1px solid var(--rojo) !important; }
+
+  .vacio { text-align: center; color: #8b98a5; padding: 40px 0; }
+  .error-clave { color: var(--rojo); font-size: 0.85rem; margin-top: 8px; display: none; }
+
+  .alerta-sat {
+    background: #fdecea; color: var(--rojo); border: 1px solid #f3c2c2;
+    border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-weight: 600;
+    margin-bottom: 14px;
+  }
+
+  .links-archivos { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .links-archivos a {
+    display: inline-block; padding: 7px 12px; border-radius: 6px; font-size: 0.82rem;
+    font-weight: 600; text-decoration: none; background: var(--gris); color: var(--azul);
+    border: 1px solid var(--borde);
+  }
+  .links-archivos a:hover { background: #e8edf1; }
+
+  .exito-contrarecibo {
+    background: #e7f6ec; color: var(--verde); border: 1px solid #b7ddc3;
+    border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-weight: 600;
+    margin-bottom: 14px;
+  }
+
+  .fila-contrarecibo {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 16px; border-radius: 8px; background: var(--gris);
+    margin-bottom: 8px; font-size: 0.88rem; flex-wrap: wrap;
+  }
+  .fila-contrarecibo .folio-cr { font-weight: 700; color: var(--azul); }
+  .fila-contrarecibo .datos-cr { color: #5b6b7a; }
+  .fila-contrarecibo a {
+    font-weight: 600; color: var(--azul); text-decoration: none;
+    padding: 6px 12px; border-radius: 6px; border: 1px solid var(--borde); background: #fff;
+  }
+  .fila-contrarecibo a:hover { background: var(--gris); }
+
+  .tabla-proveedores {
+    width: 100%; border-collapse: collapse; font-size: 0.85rem;
+  }
+  .tabla-proveedores th {
+    text-align: left; padding: 8px 10px; color: #8b98a5; font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 2px solid var(--borde);
+  }
+  .tabla-proveedores td {
+    padding: 10px; border-bottom: 1px solid var(--borde); vertical-align: top;
+  }
+  .tabla-proveedores tr:last-child td { border-bottom: none; }
+  .tabla-proveedores .nombre-prov { font-weight: 700; color: var(--texto); }
+  .tabla-proveedores .rfc-prov { color: #8b98a5; font-size: 0.78rem; }
+  .badge-empresa {
+    display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700;
+  }
+  .badge-empresa.karalv { background: #fdecea; color: var(--rojo-ec); }
+  .badge-empresa.ventura { background: #e6f0f5; color: var(--azul); }
+  .disponible-negativo { color: var(--rojo); font-weight: 700; }
+
+  .tabs {
+    display: flex; gap: 4px; overflow-x: auto; margin-bottom: 22px;
+    border-bottom: 2px solid var(--borde); padding-bottom: 0;
+  }
+  .tab-btn {
+    background: none; border: none; padding: 10px 11px; font-size: 0.82rem; font-weight: 600;
+    color: #8b98a5; cursor: pointer; white-space: nowrap; border-bottom: 3px solid transparent;
+    margin-bottom: -2px; font-family: inherit;
+  }
+  .tab-btn:hover { color: var(--azul); }
+  .tab-btn.activo { color: var(--azul); border-bottom-color: var(--azul); }
+  .tab-contador {
+    display: inline-block; background: var(--rojo-ec); color: #fff; font-size: 0.7rem; font-weight: 700;
+    border-radius: 10px; padding: 1px 7px; margin-left: 4px; min-width: 8px; text-align: center;
+  }
+
+  .btn-toggle {
+    width: auto; margin-top: 0; padding: 10px 18px; white-space: nowrap;
+    background: var(--azul); color: #fff; border: none; border-radius: 8px;
+    font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+</style>
+</head>
+<body>
+
+<div id="pantallaClave">
+  <div class="mira tl"></div>
+  <div class="mira tr"></div>
+  <div class="mira bl"></div>
+  <div class="mira br"></div>
+  <div class="liston"></div>
+
+  <div class="membrete">
+    <div class="membrete-empresa hps">
+      <img class="logo-principal" src="high-precision-supply-logo.png" alt="High Precision Supply">
+      <div class="marcas-representadas">
+        <span class="etiqueta">Marcas:</span>
+        <img src="tennant-logo.png" alt="Tennant">
+        <img src="ipc-logo.png" alt="IPC by Tennant Company">
+      </div>
+    </div>
+    <div class="membrete-empresa ec">
+      <img class="logo-ec" src="express-care-logo.png" alt="Express Care by Valvoline">
+    </div>
+  </div>
+
+  <h1>Portal Interno</h1>
+  <label style="font-weight:600; font-size:0.9rem;">Clave de acceso</label>
+  <input type="password" id="inputClave" placeholder="Clave">
+  <button id="btnEntrar" onclick="entrar()">Entrar</button>
+  <div class="error-clave" id="errorClave">Clave incorrecta.</div>
+</div>
+
+<div class="contenedor" id="panel">
+  <div class="mira tl"></div>
+  <div class="mira tr"></div>
+  <div class="mira bl"></div>
+  <div class="mira br"></div>
+  <div class="liston"></div>
+
+  <div class="membrete">
+    <div class="membrete-empresa hps">
+      <img class="logo-principal" src="high-precision-supply-logo.png" alt="High Precision Supply">
+      <div class="marcas-representadas">
+        <span class="etiqueta">Marcas:</span>
+        <img src="tennant-logo.png" alt="Tennant">
+        <img src="ipc-logo.png" alt="IPC by Tennant Company">
+      </div>
+    </div>
+    <div class="membrete-empresa ec">
+      <img class="logo-ec" src="express-care-logo.png" alt="Express Care by Valvoline">
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn activo" data-tab="pendientes" onclick="cambiarTab('pendientes')">Proveedores <span class="tab-contador" id="contadorPendientes"></span></button>
+    <button class="tab-btn" data-tab="facturas" onclick="cambiarTab('facturas')">Facturas <span class="tab-contador" id="contadorFacturas"></span></button>
+    <button class="tab-btn" data-tab="vencimientos" onclick="cambiarTab('vencimientos')">Vencimientos</button>
+    <button class="tab-btn" data-tab="contrarecibos" onclick="cambiarTab('contrarecibos')">Contrarecibos</button>
+    <button class="tab-btn" data-tab="aprobados" onclick="cambiarTab('aprobados')">Aprobados</button>
+  </div>
+
+  <div class="tab-pane" id="tab-pendientes">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+      <div>
+        <h1>Proveedores pendientes de aprobación</h1>
+        <p class="subtitulo" id="resumenPendientes">Cargando...</p>
+      </div>
+      <button id="btnTogglePendientes" onclick="togglePendientes()" class="btn-toggle">Ocultar lista ▴</button>
+    </div>
+    <div id="lista" style="display:block; margin-top:16px;"></div>
+  </div>
+
+  <div class="tab-pane" id="tab-facturas" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+      <div>
+        <h1>Facturas pendientes de validar</h1>
+        <p class="subtitulo" id="resumenFacturasPendientes">Cargando...</p>
+      </div>
+      <button id="btnToggleFacturasPendientes" onclick="toggleFacturasPendientes()" class="btn-toggle">Ocultar lista ▴</button>
+    </div>
+    <p class="subtitulo" style="margin-top:-8px;">Revisa la factura, el XML y la evidencia de entrega antes de validar. Al validar se genera el contrarecibo automáticamente.</p>
+    <div id="listaFacturas" style="display:block; margin-top:16px;"></div>
+  </div>
+
+  <div class="tab-pane" id="tab-vencimientos" style="display:none;">
+    <h1>Vencimientos — próximo martes de pago</h1>
+    <p class="subtitulo" id="resumenVencimientos">Cargando...</p>
+    <div id="tablaVencimientos"></div>
+  </div>
+
+  <div class="tab-pane" id="tab-contrarecibos" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+      <div>
+        <h1>Contrarecibos generados</h1>
+        <p class="subtitulo" id="resumenContrarecibos">Cargando...</p>
+      </div>
+      <button id="btnToggleContrarecibos" onclick="toggleContrarecibos()" class="btn-toggle">Ver lista ▾</button>
+    </div>
+    <div id="listaContrarecibos" style="display:none; margin-top:16px;"></div>
+  </div>
+
+  <div class="tab-pane" id="tab-aprobados" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+      <div>
+        <h1>Proveedores Aprobados</h1>
+        <p class="subtitulo" id="resumenProveedoresAprobados">Cargando...</p>
+      </div>
+      <button id="btnToggleProveedores" onclick="toggleProveedoresAprobados()" class="btn-toggle">Ver lista ▾</button>
+    </div>
+    <div id="tablaProveedoresAprobados" style="display:none; margin-top:16px;"></div>
+  </div>
+</div>
+
+<script>
+  const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbzyqEFg0vlivJaHSpdwh00-ZamquUDabqVxs1C7RsfvhCFkMl3KCWZuHSjdtnLeHlMdXw/exec';
+
+  function esperarMinimo(promesa, msMinimo) {
+    return Promise.all([promesa, new Promise(r => setTimeout(r, msMinimo))]).then(([resultado]) => resultado);
+  }
+
+  function cambiarTab(nombre) {
+    document.querySelectorAll('.tab-pane').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('activo'));
+    document.getElementById('tab-' + nombre).style.display = 'block';
+    document.querySelector('.tab-btn[data-tab="' + nombre + '"]').classList.add('activo');
+  }
+
+  let clave = '';
+
+  async function entrar() {
+    clave = document.getElementById('inputClave').value;
+    document.getElementById('errorClave').style.display = 'none';
+
+    const btn = document.getElementById('btnEntrar');
+    const colorNormalBtn = getComputedStyle(document.documentElement).getPropertyValue('--azul').trim();
+    btn.disabled = true;
+    btn.textContent = '⏳ Entrando...';
+    btn.style.background = '#9aa5ad';
+
+    await esperarMinimo(cargarPendientes(), 500);
+
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+    btn.style.background = colorNormalBtn;
+  }
+
+  async function cargarPendientes() {
+    const resp = await fetch(URL_APPS_SCRIPT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'listarPendientes', password: clave })
+    });
+    const resultado = await resp.json();
+
+    if (!resultado.ok) {
+      document.getElementById('errorClave').style.display = 'block';
+      return;
+    }
+
+    document.getElementById('pantallaClave').style.display = 'none';
+    document.getElementById('panel').style.display = 'block';
+    cargarFacturasPendientes();
+    cargarContrarecibos();
+    cargarVencimientos();
+    cargarProveedoresAprobados();
+    pintarLista(resultado.pendientes);
+  }
+
+  let pendientesVisible = true;
+
+  function togglePendientes() {
+    pendientesVisible = !pendientesVisible;
+    document.getElementById('lista').style.display = pendientesVisible ? 'block' : 'none';
+    document.getElementById('btnTogglePendientes').textContent = pendientesVisible ? 'Ocultar lista ▴' : 'Ver lista ▾';
+  }
+
+  function pintarLista(pendientes) {
+    const lista = document.getElementById('lista');
+    const cantidad = pendientes.length;
+    document.getElementById('resumenPendientes').textContent =
+      cantidad === 0 ? 'No hay proveedores pendientes por ahora.' :
+      cantidad === 1 ? '1 proveedor pendiente de aprobación.' :
+      cantidad + ' proveedores pendientes de aprobación.';
+    document.getElementById('btnTogglePendientes').style.display = cantidad === 0 ? 'none' : 'inline-block';
+    document.getElementById('contadorPendientes').textContent = cantidad > 0 ? cantidad : '';
+
+    if (pendientes.length === 0) {
+      lista.innerHTML = '<div class="vacio">No hay proveedores pendientes por ahora.</div>';
+      return;
+    }
+
+    lista.innerHTML = pendientes.map(p => `
+      <div class="tarjeta">
+        <h3>${p.nombre}</h3>
+        <div class="rfc">${p.rfc} · ${p.empresa}${p.nombreComercial ? ' · ' + p.nombreComercial : ''}</div>
+        ${p.alertaSAT ? `<div class="alerta-sat">⚠ Este RFC aparece en la Lista 69-B del SAT como <b>${p.alertaSAT}</b>. Revisa antes de aprobar.</div>` : ''}
+        <div class="fila-datos">
+          <span>Tel: <b>${p.telefono || '—'}</b></span>
+          <span>Correo: <b>${p.correo}</b></span>
+          <span>Forma de pago: <b>${p.formaPago || '—'}</b></span>
+        </div>
+        <div class="campos-aprobar">
+          <div>
+            <label>Plazo de pago (días)</label>
+            <input type="number" id="plazo-${p.fila}" placeholder="ej. 30">
+          </div>
+          <div>
+            <label>Línea de crédito ($)</label>
+            <input type="number" id="linea-${p.fila}" placeholder="ej. 50000">
+          </div>
+        </div>
+        <div class="botones">
+          <button class="btn-aprobar" id="btnAprobar-${p.fila}" onclick="aprobar(${p.fila})">Aprobar</button>
+          <button class="btn-rechazar" id="btnRechazar-${p.fila}" onclick="rechazar(${p.fila})">Rechazar</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function aprobar(fila) {
+    const plazoPago = document.getElementById('plazo-' + fila).value;
+    const lineaCredito = document.getElementById('linea-' + fila).value;
+
+    if (!plazoPago || !lineaCredito) {
+      alert('Ingresa el plazo de pago y la línea de crédito antes de aprobar.');
+      return;
+    }
+
+    const btn = document.getElementById('btnAprobar-' + fila);
+    const btnOtro = document.getElementById('btnRechazar-' + fila);
+    btn.disabled = true;
+    btnOtro.disabled = true;
+    btn.textContent = '⏳ Aprobando...';
+    btn.style.background = '#9aa5ad';
+
+    const resp = await esperarMinimo(fetch(URL_APPS_SCRIPT, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'aprobarProveedor', password: clave, fila: fila,
+        plazoPago: plazoPago, lineaCredito: lineaCredito
+      })
+    }), 500);
+    const resultado = await resp.json();
+
+    if (resultado.ok) {
+      cargarPendientes();
+    } else {
+      alert(resultado.error || 'Ocurrió un error al aprobar.');
+      btn.disabled = false;
+      btnOtro.disabled = false;
+      btn.textContent = 'Aprobar';
+      btn.style.background = '';
+    }
+  }
+
+  async function rechazar(fila) {
+    const motivo = prompt('Motivo del rechazo (opcional):') || '';
+
+    const btn = document.getElementById('btnRechazar-' + fila);
+    const btnOtro = document.getElementById('btnAprobar-' + fila);
+    btn.disabled = true;
+    btnOtro.disabled = true;
+    btn.textContent = '⏳ Rechazando...';
+    btn.style.background = '#9aa5ad';
+
+    const resp = await esperarMinimo(fetch(URL_APPS_SCRIPT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'rechazarProveedor', password: clave, fila: fila, motivo: motivo })
+    }), 500);
+    const resultado = await resp.json();
+
+    if (resultado.ok) {
+      cargarPendientes();
+    } else {
+      alert(resultado.error || 'Ocurrió un error al rechazar.');
+      btn.disabled = false;
+      btnOtro.disabled = false;
+      btn.textContent = 'Rechazar';
+      btn.style.background = '';
+    }
+  }
+
+  // ====== FACTURAS PENDIENTES DE VALIDAR ======
+
+  let facturasPendientesVisible = true;
+
+  function toggleFacturasPendientes() {
+    facturasPendientesVisible = !facturasPendientesVisible;
+    document.getElementById('listaFacturas').style.display = facturasPendientesVisible ? 'block' : 'none';
+    document.getElementById('btnToggleFacturasPendientes').textContent = facturasPendientesVisible ? 'Ocultar lista ▴' : 'Ver lista ▾';
+  }
+
+  async function cargarFacturasPendientes() {
+    const resp = await fetch(URL_APPS_SCRIPT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'listarFacturasPendientes', password: clave })
+    });
+    const resultado = await resp.json();
+    if (!resultado.ok) return;
+    pintarFacturasPendientes(resultado.pendientes);
+  }
+
+  function pintarFacturasPendientes(pendientes) {
+    const lista = document.getElementById('listaFacturas');
+    const cantidad = pendientes.length;
+    document.getElementById('resumenFacturasPendientes').textContent =
+      cantidad === 0 ? 'No hay facturas pendientes por ahora.' :
+      cantidad === 1 ? '1 factura pendiente de validar.' :
+      cantidad + ' facturas pendientes de validar.';
+    document.getElementById('btnToggleFacturasPendientes').style.display = cantidad === 0 ? 'none' : 'inline-block';
+    document.getElementById('contadorFacturas').textContent = cantidad > 0 ? cantidad : '';
+
+    if (pendientes.length === 0) {
+      lista.innerHTML = '<div class="vacio">No hay facturas pendientes por ahora.</div>';
+      return;
+    }
+
+    lista.innerHTML = pendientes.map(f => `
+      <div class="tarjeta" id="tarjetaFactura-${f.fila}">
+        <h3>${f.proveedor}</h3>
+        <div class="rfc">${f.rfcProveedor} · ${f.empresa} · ${f.folioRegistro}</div>
+        <div class="links-archivos">
+          <a href="${f.linkFactura}" target="_blank" rel="noopener">Ver factura PDF</a>
+          <a href="${f.linkXML}" target="_blank" rel="noopener">Ver XML</a>
+          <a href="${f.linkEvidencia}" target="_blank" rel="noopener">Ver evidencia</a>
+        </div>
+        <div class="fila-datos">
+          ${f.folioFactura ? `<span>Folio factura: <b>${f.folioFactura}</b></span>` : ''}
+          <span>Folio fiscal: <b>${f.folioFiscal}</b></span>
+          <span>Monto: <b>$${Number(f.monto).toLocaleString('es-MX', {minimumFractionDigits:2})}</b></span>
+          <span>Emisión: <b>${new Date(f.fechaEmision).toLocaleDateString('es-MX')}</b></span>
+          <span>Vence: <b>${new Date(f.vencimiento).toLocaleDateString('es-MX')}</b></span>
+        </div>
+        <div id="resultadoFactura-${f.fila}"></div>
+        <div class="botones">
+          <button class="btn-aprobar" id="btnValidar-${f.fila}" onclick="validarFactura(${f.fila})">Validar</button>
+          <button class="btn-rechazar" id="btnRechazarFactura-${f.fila}" onclick="rechazarFactura(${f.fila})">Rechazar</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function validarFactura(fila) {
+    const btn = document.getElementById('btnValidar-' + fila);
+    const btnOtro = document.getElementById('btnRechazarFactura-' + fila);
+    btn.disabled = true;
+    btnOtro.disabled = true;
+    btn.textContent = '⏳ Validando...';
+    btn.style.background = '#9aa5ad';
+
+    const resp = await esperarMinimo(fetch(URL_APPS_SCRIPT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'validarFactura', password: clave, fila: fila })
+    }), 500);
+    const resultado = await resp.json();
+
+    if (resultado.ok) {
+      const div = document.getElementById('resultadoFactura-' + fila);
+      if (div) {
+        div.innerHTML = `<div class="exito-contrarecibo">✔ Validada. Contrarecibo generado: <b>${resultado.folioContrarecibo}</b> — <a href="${resultado.urlContrarecibo}" target="_blank" rel="noopener">Ver PDF</a></div>`;
+      }
+      btn.textContent = '✔ Validada';
+      cargarContrarecibos();
+      setTimeout(cargarFacturasPendientes, 6000);
+    } else {
+      alert(resultado.error || 'Ocurrió un error al validar.');
+      btn.disabled = false;
+      btnOtro.disabled = false;
+      btn.textContent = 'Validar';
+      btn.style.background = '';
+    }
+  }
+
+  async function rechazarFactura(fila) {
+    const motivo = prompt('Motivo del rechazo:') || '';
+
+    const btn = document.getElementById('btnRechazarFactura-' + fila);
+    const btnOtro = document.getElementById('btnValidar-' + fila);
+    btn.disabled = true;
+    btnOtro.disabled = true;
+    btn.textContent = '⏳ Rechazando...';
+    btn.style.background = '#9aa5ad';
+
+    const resp = await esperarMinimo(fetch(URL_APPS_SCRIPT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'rechazarFactura', password: clave, fila: fila, motivo: motivo })
+    }), 500);
+    const resultado = await resp.json();
+
+    if (resultado.ok) {
+      cargarFacturasPendientes();
+    } else {
+      alert(resultado.error || 'Ocurrió un error al rechazar.');
+      btn.disabled = false;
+      btnOtro.disabled = false;
+      btn.textContent = 'Rechazar';
+      btn.style.background = '';
+    }
+  }
+
+  // ====== CONTRARECIBOS GENERADOS (consulta permanente) ======
+
+  let contrarecibosVisible = false;
+
+  function toggleContrarecibos() {
+    contrarecibosVisible = !contrarecibosVisible;
+    document.getElementById('listaContrarecibos').style.display = contrarecibosVisible ? 'block' : 'none';
+    document.getElementById('btnToggleContrarecibos').textContent = contrarecibosVisible ? 'Ocultar lista ▴' : 'Ver lista ▾';
+  }
+
+  async function cargarContrarecibos() {
+    const resp = await fetch(URL_APPS_SCRIPT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'listarContrarecibos', password: clave })
+    });
+    const resultado = await resp.json();
+    if (!resultado.ok) return;
+    pintarContrarecibos(resultado.contrarecibos);
+  }
+
+  function pintarContrarecibos(contrarecibos) {
+    const lista = document.getElementById('listaContrarecibos');
+    const cantidad = contrarecibos.length;
+    document.getElementById('resumenContrarecibos').textContent =
+      cantidad === 0 ? 'Todavía no se ha generado ningún contrarecibo.' :
+      cantidad === 1 ? '1 contrarecibo generado.' :
+      cantidad + ' contrarecibos generados.';
+    document.getElementById('btnToggleContrarecibos').style.display = cantidad === 0 ? 'none' : 'inline-block';
+
+    if (contrarecibos.length === 0) {
+      lista.innerHTML = '<div class="vacio">Todavía no se ha generado ningún contrarecibo.</div>';
+      return;
+    }
+
+    lista.innerHTML = contrarecibos.map(c => `
+      <div class="fila-contrarecibo">
+        <div>
+          <div class="folio-cr">${c.folioContrarecibo}</div>
+          <div class="datos-cr">${c.proveedor} · $${Number(c.monto).toLocaleString('es-MX', {minimumFractionDigits:2})}</div>
+        </div>
+        <a href="${c.urlContrarecibo}" target="_blank" rel="noopener">Ver PDF</a>
+      </div>
+    `).join('');
+  }
+
+  // ====== PROVEEDORES APROBADOS (condiciones acordadas) ======
+
+  let proveedoresAprobadosVisible = false;
+
+  async function cargarProveedoresAprobados() {
+    const resp = await fetch(URL_APPS_SCRIPT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'listarProveedoresAprobados', password: clave })
+    });
+    const resultado = await resp.json();
+    if (!resultado.ok) return;
+
+    const cantidad = resultado.proveedores.length;
+    document.getElementById('resumenProveedoresAprobados').textContent =
+      cantidad === 0 ? 'Todavía no tienes proveedores aprobados.' :
+      cantidad === 1 ? '1 proveedor aprobado.' :
+      cantidad + ' proveedores aprobados.';
+    document.getElementById('btnToggleProveedores').style.display = cantidad === 0 ? 'none' : 'inline-block';
+
+    pintarProveedoresAprobados(resultado.proveedores);
+  }
+
+  function toggleProveedoresAprobados() {
+    proveedoresAprobadosVisible = !proveedoresAprobadosVisible;
+    document.getElementById('tablaProveedoresAprobados').style.display = proveedoresAprobadosVisible ? 'block' : 'none';
+    document.getElementById('btnToggleProveedores').textContent = proveedoresAprobadosVisible ? 'Ocultar lista ▴' : 'Ver lista ▾';
+  }
+
+  function pintarProveedoresAprobados(proveedores) {
+    const contenedor = document.getElementById('tablaProveedoresAprobados');
+
+    if (proveedores.length === 0) {
+      contenedor.innerHTML = '<div class="vacio">Todavía no tienes proveedores aprobados.</div>';
+      return;
+    }
+
+    const filas = proveedores.map(p => {
+      const claseEmpresa = p.empresa === 'KARALV' ? 'karalv' : 'ventura';
+      const disponibleNum = Number(p.disponible);
+      const disponibleTexto = '$' + disponibleNum.toLocaleString('es-MX', {minimumFractionDigits:2});
+      const claseDisponible = disponibleNum < 0 ? 'disponible-negativo' : '';
+      return `
+        <tr>
+          <td>
+            <div class="nombre-prov">${p.nombre}</div>
+            <div class="rfc-prov">${p.rfc}</div>
+          </td>
+          <td><span class="badge-empresa ${claseEmpresa}">${p.empresa}</span></td>
+          <td>${p.formaPago || '—'}</td>
+          <td>${p.plazoPago} días</td>
+          <td>$${Number(p.lineaCredito).toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
+          <td class="${claseDisponible}">${disponibleTexto}</td>
+        </tr>
+      `;
+    }).join('');
+
+    contenedor.innerHTML = `
+      <table class="tabla-proveedores">
+        <thead>
+          <tr>
+            <th>Proveedor</th>
+            <th>Empresa</th>
+            <th>Forma de pago</th>
+            <th>Plazo</th>
+            <th>Línea de crédito</th>
+            <th>Disponible</th>
+          </tr>
+        </thead>
+        <tbody>${filas}</tbody>
+      </table>
+    `;
+  }
+
+  // ====== VENCIMIENTOS (próximo martes de pago) ======
+
+  async function cargarVencimientos() {
+    const resp = await fetch(URL_APPS_SCRIPT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'listarVencimientos', password: clave })
+    });
+    const resultado = await resp.json();
+    if (!resultado.ok) return;
+    pintarVencimientos(resultado.resumen);
+  }
+
+  function pintarVencimientos(resumen) {
+    const fechaBonita = resumen.martesPago.split('-').reverse().join('/');
+    const resumenEl = document.getElementById('resumenVencimientos');
+    const contenedor = document.getElementById('tablaVencimientos');
+
+    if (resumen.proveedores.length === 0) {
+      resumenEl.textContent = 'No hay facturas validadas con pago programado para el martes ' + fechaBonita + '.';
+      contenedor.innerHTML = '';
+      return;
+    }
+
+    const totalTexto = '$' + resumen.granTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+    resumenEl.innerHTML = 'Pago programado para el <b>' + fechaBonita + '</b> — total: <b>' + totalTexto + '</b>';
+
+    const filas = resumen.proveedores.map(p => `
+      <tr>
+        <td>
+          <div class="nombre-prov">${p.proveedor}</div>
+          <div class="rfc-prov">${p.folios.join(', ')}</div>
+        </td>
+        <td><span class="badge-empresa ${p.empresa === 'KARALV' ? 'karalv' : 'ventura'}">${p.empresa}</span></td>
+        <td>$${p.total.toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
+      </tr>
+    `).join('');
+
+    contenedor.innerHTML = `
+      <table class="tabla-proveedores">
+        <thead><tr><th>Proveedor</th><th>Empresa</th><th>Monto</th></tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    `;
+  }
+</script>
+
+</body>
+</html>
