@@ -95,6 +95,20 @@
   .estatus-badge.validada { background: #e7f6ec; color: #1e6b3a; }
   .estatus-badge.rechazada { background: #fbe9e9; color: #a3272c; }
   .alerta-mini { color: var(--rojo); font-size: 0.78rem; margin-top: 4px; }
+
+  .tarjeta-complemento {
+    background: #fff8e6; border: 1px solid #f0d98c; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
+  }
+  .tarjeta-complemento.vencido { background: #fbe9e9; border-color: #f3c2c2; }
+  .tarjeta-complemento .fila-datos { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 0.88rem; margin-bottom: 10px; }
+  .tarjeta-complemento .limite { font-weight: 700; }
+  .tarjeta-complemento .limite.vencido-texto { color: var(--rojo); }
+  .fila-archivos-complemento { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .fila-archivos-complemento input[type="file"] { flex: 1; min-width: 140px; font-size: 0.8rem; padding: 6px; border: 1px solid var(--borde); border-radius: 6px; }
+  .btn-subir-complemento {
+    padding: 9px 16px; background: var(--azul); color: #fff; border: none; border-radius: 6px;
+    font-weight: 600; cursor: pointer; font-size: 0.85rem; white-space: nowrap;
+  }
   .vacio-historial { text-align: center; color: #8b98a5; padding: 20px 0; font-size: 0.88rem; }
 
   .pantalla-error {
@@ -145,6 +159,11 @@
 
     <div id="mensaje" class="mensaje"></div>
 
+    <div id="seccionComplementos" style="display:none;" class="seccion-historial">
+      <h2>Complementos de Pago pendientes</h2>
+      <div id="listaComplementos"></div>
+    </div>
+
     <div class="seccion-historial">
       <h2>Tus facturas</h2>
       <div id="listaFacturas"></div>
@@ -153,7 +172,7 @@
 </div>
 
 <script>
-  const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbzyqEFg0vlivJaHSpdwh00-ZamquUDabqVxs1C7RsfvhCFkMl3KCWZuHSjdtnLeHlMdXw/exec';
+  const URL_APPS_SCRIPT = 'https://api-ge7wjlb3tq-uc.a.run.app';
 
   function esperarMinimo(promesa, msMinimo) {
     return Promise.all([promesa, new Promise(r => setTimeout(r, msMinimo))]).then(([resultado]) => resultado);
@@ -191,6 +210,7 @@
       document.getElementById('panelPrincipal').style.display = 'block';
 
       cargarFacturas();
+      cargarComplementosPendientes();
     } catch (err) {
       mostrarError('No se pudo conectar con el sistema. Intenta más tarde.');
     }
@@ -351,6 +371,107 @@
         ${f.alertaRFC ? `<div class="alerta-mini">⚠ ${f.alertaRFC}</div>` : ''}
       </div>
     `).join('');
+  }
+
+  // ====== COMPLEMENTOS DE PAGO PENDIENTES ======
+
+  async function cargarComplementosPendientes() {
+    try {
+      const resp = await fetch(URL_APPS_SCRIPT, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'listarComplementosPendientes', token: token })
+      });
+      const resultado = await resp.json();
+      if (!resultado.ok) return;
+      pintarComplementosPendientes(resultado.pendientes);
+    } catch (err) {
+      // Si esto falla, no interrumpimos el resto de la página.
+    }
+  }
+
+  function pintarComplementosPendientes(pendientes) {
+    const seccion = document.getElementById('seccionComplementos');
+    const contenedor = document.getElementById('listaComplementos');
+
+    if (!pendientes || pendientes.length === 0) {
+      seccion.style.display = 'none';
+      return;
+    }
+    seccion.style.display = 'block';
+
+    const hoy = new Date();
+    contenedor.innerHTML = pendientes.map(p => {
+      const fechaLimite = new Date(p.fechaLimite);
+      const vencido = fechaLimite < hoy;
+      return `
+        <div class="tarjeta-complemento ${vencido ? 'vencido' : ''}">
+          <div class="fila-datos">
+            <span>Factura <b>${p.referenciaFactura}</b> — $${Number(p.montoAbonado).toLocaleString('es-MX', {minimumFractionDigits:2})}</span>
+            <span class="limite ${vencido ? 'vencido-texto' : ''}">${vencido ? '⚠ Venció el' : 'Fecha límite:'} ${fechaLimite.toLocaleDateString('es-MX')}</span>
+          </div>
+          <div class="fila-archivos-complemento">
+            <div style="flex:1; min-width:140px;">
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#5b6b7a; margin-bottom:4px;">XML del complemento</label>
+              <input type="file" id="complementoXml-${p.idAbono}" accept=".xml,text/xml" style="width:100%;">
+            </div>
+            <div style="flex:1; min-width:140px;">
+              <label style="display:block; font-size:0.75rem; font-weight:600; color:#5b6b7a; margin-bottom:4px;">PDF del complemento</label>
+              <input type="file" id="complementoPdf-${p.idAbono}" accept="application/pdf" style="width:100%;">
+            </div>
+            <button class="btn-subir-complemento" id="btnSubirComplemento-${p.idAbono}" onclick="subirComplemento('${p.idAbono}')" style="align-self:flex-end;">Subir</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function subirComplemento(idAbono) {
+    const xmlInput = document.getElementById('complementoXml-' + idAbono);
+    const pdfInput = document.getElementById('complementoPdf-' + idAbono);
+    const xmlFile = xmlInput.files[0];
+    const pdfFile = pdfInput.files[0];
+
+    if (!xmlFile || !pdfFile) {
+      alert('Sube el XML y el PDF del complemento antes de continuar.');
+      return;
+    }
+
+    const btn = document.getElementById('btnSubirComplemento-' + idAbono);
+    const colorNormalBtn = getComputedStyle(document.documentElement).getPropertyValue('--azul').trim();
+    btn.disabled = true;
+    btn.textContent = '⏳ Subiendo...';
+    btn.style.background = '#9aa5ad';
+
+    try {
+      const [xmlTexto, pdfBase64] = await esperarMinimo(Promise.all([
+        archivoATexto(xmlFile),
+        archivoABase64(pdfFile)
+      ]), 500);
+
+      const resp = await fetch(URL_APPS_SCRIPT, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'subirComplementoPago', token: token, idAbono: idAbono,
+          xmlTexto: xmlTexto, pdfBase64: pdfBase64
+        })
+      });
+      const resultado = await resp.json();
+
+      if (resultado.ok) {
+        alert('Complemento recibido correctamente. ¡Gracias!');
+        cargarComplementosPendientes();
+      } else {
+        alert(resultado.error || 'Ocurrió un error al subir el complemento.');
+        btn.disabled = false;
+        btn.textContent = 'Subir';
+        btn.style.background = colorNormalBtn;
+      }
+    } catch (err) {
+      alert('No se pudo subir el complemento. Detalle: ' + (err && err.message ? err.message : 'error desconocido'));
+      btn.disabled = false;
+      btn.textContent = 'Subir';
+      btn.style.background = colorNormalBtn;
+    }
   }
 
   iniciar();
