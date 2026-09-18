@@ -254,6 +254,7 @@
     <button class="tab-btn activo" data-tab="pendientes" onclick="cambiarTab('pendientes')">Proveedores <span class="tab-contador" id="contadorPendientes"></span></button>
     <button class="tab-btn" data-tab="facturas" onclick="cambiarTab('facturas')">Facturas <span class="tab-contador" id="contadorFacturas"></span></button>
     <button class="tab-btn" data-tab="preaprobacion" onclick="cambiarTab('preaprobacion')">Preaprobación <span class="tab-contador" id="contadorPreaprobacion"></span></button>
+    <button class="tab-btn" data-tab="notascredito" onclick="cambiarTab('notascredito')">Notas de Crédito <span class="tab-contador" id="contadorNotasCredito"></span></button>
     <button class="tab-btn" data-tab="vencimientos" onclick="cambiarTab('vencimientos')">Vencimientos</button>
     <button class="tab-btn" data-tab="contrarecibos" onclick="cambiarTab('contrarecibos')">Contrarecibos</button>
     <button class="tab-btn" data-tab="aprobados" onclick="cambiarTab('aprobados')">Aprobados</button>
@@ -295,6 +296,13 @@
       <button id="btnConfirmarPreaprobacion" onclick="confirmarPreaprobacionSeleccionada()" style="width:auto; padding:12px 24px; background:var(--verde); color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:1rem;">Aprobar para pago</button>
     </div>
     <div id="resultadoConfirmacionPreaprobacion" style="margin-top:20px;"></div>
+  </div>
+
+  <div class="tab-pane" id="tab-notascredito" style="display:none;">
+    <h1>Notas de Crédito pendientes</h1>
+    <p class="subtitulo" id="resumenNotasCredito">Cargando...</p>
+    <p class="subtitulo" style="margin-top:-8px;">El sistema detecta sola a qué factura aplica cada Nota de Crédito (leyendo el XML). Si no la detecta, indica manualmente el ID de la factura antes de aplicar.</p>
+    <div id="listaNotasCredito"></div>
   </div>
 
   <div class="tab-pane" id="tab-vencimientos" style="display:none;">
@@ -392,6 +400,7 @@
       // No interrumpas si ya hay casillas marcadas (no quieras perder tu selección a medio hacer)
       if (document.querySelectorAll('.check-preaprobacion:checked').length === 0) cargarPreaprobacion();
     },
+    notascredito: () => cargarNotasCredito(),
     vencimientos: () => cargarVencimientos(),
     contrarecibos: () => cargarContrarecibos(),
     aprobados: () => cargarProveedoresAprobados(),
@@ -466,6 +475,7 @@
     document.getElementById('panel').style.display = 'block';
     cargarFacturasPendientes();
     cargarPreaprobacion();
+    cargarNotasCredito();
     cargarContrarecibos();
     cargarVencimientos();
     cargarProveedoresAprobados();
@@ -986,6 +996,110 @@
       cargarPagos();
     } else {
       alert(resultado.error || 'Ocurrió un error al aprobar para pago.');
+    }
+  }
+
+  // ====== NOTAS DE CRÉDITO ======
+
+  async function cargarNotasCredito() {
+    const resp = await fetch(URL_APPS_SCRIPT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'listarNotasCreditoPendientes', password: clave })
+    });
+    const resultado = await resp.json();
+    if (!resultado.ok) return;
+    document.getElementById('contadorNotasCredito').textContent = resultado.notasCredito.length > 0 ? resultado.notasCredito.length : '';
+    pintarNotasCredito(resultado.notasCredito);
+  }
+
+  function pintarNotasCredito(notasCredito) {
+    const resumenEl = document.getElementById('resumenNotasCredito');
+    const lista = document.getElementById('listaNotasCredito');
+
+    if (notasCredito.length === 0) {
+      resumenEl.textContent = 'No hay Notas de Crédito pendientes de revisar por ahora.';
+      lista.innerHTML = '<div class="vacio">No hay Notas de Crédito pendientes por ahora.</div>';
+      return;
+    }
+
+    resumenEl.textContent = notasCredito.length + ' Nota(s) de Crédito esperando tu revisión.';
+
+    lista.innerHTML = notasCredito.map(nc => {
+      const montoTexto = '$' + Number(nc.monto).toLocaleString('es-MX', { minimumFractionDigits: 2 });
+      const fechaTexto = nc.fechaEmision ? new Date(nc.fechaEmision).toLocaleDateString('es-MX') : '—';
+
+      let bloqueFactura;
+      if (nc.facturaEncontrada) {
+        const f = nc.facturaEncontrada;
+        bloqueFactura = `
+          <div class="tarjeta" style="margin:10px 0;">
+            ✅ Se detectó automáticamente: <b>${f.folioFactura}</b> (${f.folioContrarecibo || 'sin contrarecibo'})
+            — Saldo pendiente actual: <b>$${Number(f.saldoPendiente).toLocaleString('es-MX', {minimumFractionDigits:2})}</b>
+          </div>`;
+      } else {
+        bloqueFactura = `
+          <div class="tarjeta alerta" style="margin:10px 0;">
+            ⚠️ No se detectó automáticamente a qué factura aplica. Indica el ID de la factura (lo encuentras en la pestaña "Facturas" o "Contrarecibos"):
+            <input type="text" id="facturaManual_${nc.fila}" placeholder="ID de la factura" style="margin-top:8px; width:100%; max-width:340px;">
+          </div>`;
+      }
+
+      return `
+        <div class="fila-contrarecibo" style="flex-direction:column; align-items:stretch;">
+          <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+            <div>
+              <div class="folio-cr">${nc.proveedor} <span class="badge-empresa ${nc.empresa === 'KARALV' ? 'karalv' : 'ventura'}" style="margin-left:6px;">${nc.empresa}</span></div>
+              <div class="datos-cr">Folio fiscal: ${nc.folioFiscal} · Emitida: ${fechaTexto} · Monto: <b>${montoTexto}</b></div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-start;">
+              <a href="${nc.linkPdf}" target="_blank" rel="noopener" style="align-self:center;">Ver PDF</a>
+            </div>
+          </div>
+          ${bloqueFactura}
+          <div style="display:flex; gap:10px; margin-top:6px;">
+            <button onclick="aplicarNotaCredito('${nc.fila}')" style="width:auto; padding:10px 20px; background:var(--verde); color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer;">Aplicar</button>
+            <button onclick="rechazarNotaCreditoUI('${nc.fila}')" style="width:auto; padding:10px 20px; background:none; color:var(--rojo); border:1px solid var(--rojo); border-radius:8px; font-weight:700; cursor:pointer;">Rechazar</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  async function aplicarNotaCredito(fila) {
+    const inputManual = document.getElementById('facturaManual_' + fila);
+    const facturaId = inputManual ? inputManual.value.trim() : '';
+
+    if (inputManual && !facturaId) {
+      alert('Indica el ID de la factura a la que aplica esta Nota de Crédito antes de continuar.');
+      return;
+    }
+
+    const payload = { action: 'validarNotaCredito', password: clave, fila: fila };
+    if (facturaId) payload.facturaId = facturaId;
+
+    const resp = await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify(payload) });
+    const resultado = await resp.json();
+
+    if (resultado.ok) {
+      cargarNotasCredito();
+      cargarPagos();
+      cargarPreaprobacion();
+      cargarEstadoCuenta();
+    } else {
+      alert(resultado.error || 'Ocurrió un error al aplicar la Nota de Crédito.');
+    }
+  }
+
+  async function rechazarNotaCreditoUI(fila) {
+    const motivo = prompt('¿Por qué se rechaza esta Nota de Crédito? (opcional)') || '';
+    const resp = await fetch(URL_APPS_SCRIPT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'rechazarNotaCredito', password: clave, fila: fila, motivo: motivo })
+    });
+    const resultado = await resp.json();
+    if (resultado.ok) {
+      cargarNotasCredito();
+    } else {
+      alert(resultado.error || 'Ocurrió un error al rechazar.');
     }
   }
 
