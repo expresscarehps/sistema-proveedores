@@ -159,6 +159,22 @@
 
     <div id="mensaje" class="mensaje"></div>
 
+    <div class="seccion-historial">
+      <h2>Subir Nota de Crédito</h2>
+      <p class="ayuda-archivo" style="margin-top:-6px; margin-bottom:12px;">Si tienes una Nota de Crédito timbrada (por una devolución, ajuste, etc.), súbela aquí — el sistema detecta sola a cuál factura aplica.</p>
+      <form id="formNotaCredito">
+        <label>Nota de Crédito (PDF) *</label>
+        <input type="file" id="notaCreditoPdf" accept="application/pdf" required>
+
+        <label>XML de la Nota de Crédito *</label>
+        <input type="file" id="notaCreditoXml" accept=".xml,text/xml" required>
+        <div class="ayuda-archivo">El sistema lee el monto, folio fiscal, y a qué factura aplica directo de este archivo.</div>
+
+        <button type="submit" id="btnEnviarNC">Subir Nota de Crédito</button>
+      </form>
+      <div id="mensajeNC" class="mensaje"></div>
+    </div>
+
     <div id="seccionComplementos" style="display:none;" class="seccion-historial">
       <h2>Complementos de Pago pendientes</h2>
       <div id="listaComplementos"></div>
@@ -328,6 +344,53 @@
     mensaje.style.display = 'block';
     btn.disabled = false;
     btn.textContent = 'Subir factura';
+    btn.style.background = colorNormalBtn;
+  });
+
+  document.getElementById('formNotaCredito').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btnEnviarNC');
+    const mensaje = document.getElementById('mensajeNC');
+    const colorNormalBtn = getComputedStyle(document.documentElement).getPropertyValue('--azul').trim();
+    btn.disabled = true;
+    btn.textContent = '⏳ Subiendo...';
+    btn.style.background = '#9aa5ad';
+    mensaje.style.display = 'none';
+
+    try {
+      const pdfFile = document.getElementById('notaCreditoPdf').files[0];
+      const xmlFile = document.getElementById('notaCreditoXml').files[0];
+      if (!pdfFile || !xmlFile) {
+        throw new Error('Sube tanto el PDF como el XML antes de enviar.');
+      }
+
+      const [pdfBase64, xmlTexto] = await Promise.all([
+        archivoABase64(pdfFile),
+        archivoATexto(xmlFile)
+      ]);
+
+      const resp = await esperarMinimo(fetch(URL_APPS_SCRIPT, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'registrarNotaCredito', token: token, empresaFactura: empresaProveedor, pdfBase64: pdfBase64, xmlTexto: xmlTexto })
+      }), 600);
+      const resultado = await resp.json();
+
+      if (resultado.ok) {
+        mensaje.className = 'mensaje exito';
+        mensaje.textContent = 'Nota de Crédito recibida correctamente (folio ' + resultado.folio + '). Queda pendiente de validación.';
+        document.getElementById('formNotaCredito').reset();
+      } else {
+        mensaje.className = 'mensaje error';
+        mensaje.textContent = resultado.error || 'Ocurrió un error, intenta de nuevo.';
+      }
+    } catch (err) {
+      mensaje.className = 'mensaje error';
+      mensaje.textContent = err.message || 'No se pudo subir la Nota de Crédito. Intenta más tarde.';
+    }
+
+    mensaje.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Subir Nota de Crédito';
     btn.style.background = colorNormalBtn;
   });
 
