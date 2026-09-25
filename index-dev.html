@@ -32,14 +32,12 @@
     overflow: hidden;
   }
 
-  /* Listón bicolor: sella el sistema como una carta membretada de las dos empresas */
   .liston {
     height: 5px;
     margin: 0 -30px;
     background: linear-gradient(to right, var(--azul) 0%, var(--azul) 47%, var(--rojo-ec) 53%, var(--rojo-ec) 100%);
   }
 
-  /* Membrete: logos como encabezado de carta, no como tarjeta aparte */
   .membrete {
     display: flex;
     align-items: flex-start;
@@ -67,7 +65,6 @@
     .membrete-empresa.hps, .membrete-empresa.ec { align-items: center; }
   }
 
-  /* Esquinas tipo mira, tomadas del propio ícono de High Precision Supply */
   .mira {
     position: absolute;
     width: 16px;
@@ -213,6 +210,10 @@
   </form>
 
   <div id="mensaje" class="mensaje"></div>
+
+  <div style="margin-top:28px; padding-top:14px; border-top:1px solid var(--borde); text-align:center; font-size:0.78rem; color:#8b98a5;">
+    Al registrarte, tus datos se tratan conforme a nuestro <a href="aviso-privacidad.html" target="_blank" rel="noopener" style="color:var(--azul-claro);">Aviso de Privacidad</a>.
+  </div>
 </div>
 
 <script>
