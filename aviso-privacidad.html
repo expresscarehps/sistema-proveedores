@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aviso de Privacidad - Sistema de Proveedores</title>
+<style>
+  :root {
+    --azul: #0b5d85;
+    --azul-claro: #0e7bab;
+    --rojo-ec: #e3241a;
+    --gris: #f4f6f8;
+    --texto: #22303f;
+    --borde: #d5dce3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: var(--gris);
+    margin: 0;
+    padding: 24px 16px;
+    color: var(--texto);
+  }
+  .contenedor {
+    position: relative;
+    max-width: 760px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    padding: 0 36px 40px 36px;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.07);
+    overflow: hidden;
+  }
+  .liston {
+    height: 5px;
+    margin: 0 -36px;
+    background: linear-gradient(to right, var(--azul) 0%, var(--azul) 47%, var(--rojo-ec) 53%, var(--rojo-ec) 100%);
+  }
+  .membrete {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 22px 0 18px 0;
+    border-bottom: 1px solid var(--borde);
+    margin-bottom: 26px;
+  }
+  .membrete-empresa { display: flex; flex-direction: column; gap: 8px; }
+  .membrete-empresa.hps { align-items: flex-start; }
+  .membrete-empresa.ec { align-items: flex-end; }
+  .membrete-empresa img.logo-principal { height: 46px; width: auto; display: block; }
+  .membrete-empresa img.logo-ec { height: 46px; width: auto; display: block; border-radius: 5px; }
+  .marcas-representadas { display: flex; align-items: center; gap: 8px; }
+  .marcas-representadas .etiqueta {
+    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #99a5b0; font-weight: 700; white-space: nowrap;
+  }
+  .marcas-representadas img { height: 42px; width: auto; }
+  @media (max-width: 480px) {
+    .membrete { justify-content: center; text-align: center; }
+    .membrete-empresa.hps, .membrete-empresa.ec { align-items: center; }
+  }
+  .mira {
+    position: absolute; width: 16px; height: 16px;
+    border: 2px solid var(--azul-claro); opacity: 0.45; pointer-events: none;
+  }
+  .mira.tl { top: 14px; left: 14px; border-right: none; border-bottom: none; }
+  .mira.tr { top: 14px; right: 14px; border-left: none; border-bottom: none; }
+  .mira.bl { bottom: 14px; left: 14px; border-right: none; border-top: none; }
+  .mira.br { bottom: 14px; right: 14px; border-left: none; border-top: none; }
+
+  .eyebrow {
+    font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--azul-claro); font-weight: 700; margin: 0 0 6px 0;
+    font-family: "SF Mono", "Courier New", monospace;
+  }
+  h1 { font-size: 1.5rem; color: var(--azul); margin-bottom: 4px; }
+  p.subtitulo { color: #5b6b7a; margin-top: 0; margin-bottom: 24px; font-size: 0.95rem; }
+  h2 { font-size: 1.05rem; color: var(--azul); margin: 28px 0 10px 0; }
+  p, li { font-size: 0.92rem; line-height: 1.6; color: var(--texto); }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  .tarjeta {
+    background: var(--gris); border-radius: 10px; padding: 14px 18px;
+    margin: 14px 0; font-size: 0.9rem;
+  }
+  .tarjeta strong { color: var(--azul); }
+  a { color: var(--azul); }
+  .pie {
+    margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--borde);
+    font-size: 0.78rem; color: #8b98a5; text-align: center;
+  }
+  .placeholder { background: #fff4d9; padding: 1px 5px; border-radius: 4px; color: #8a6900; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="contenedor">
+  <div class="mira tl"></div>
+  <div class="mira tr"></div>
+  <div class="mira bl"></div>
+  <div class="mira br"></div>
+  <div class="liston"></div>
+
+  <div class="membrete">
+    <div class="membrete-empresa hps">
+      <img class="logo-principal" src="high-precision-supply-logo.png" alt="High Precision Supply">
+      <div class="marcas-representadas">
+        <span class="etiqueta">Marcas:</span>
+        <img src="tennant-logo.png" alt="Tennant">
+        <img src="ipc-logo.png" alt="IPC by Tennant Company">
+      </div>
+    </div>
+    <div class="membrete-empresa ec">
+      <img class="logo-ec" src="express-care-logo.png" alt="Express Care by Valvoline">
+    </div>
+  </div>
+
+  <p class="eyebrow">Protección de datos personales</p>
+  <h1>Aviso de Privacidad</h1>
+  <p class="subtitulo">Sistema de Registro de Facturas y Proveedores</p>
+
+  <p>Con fundamento en los artículos 15 y 16 de la Ley Federal de Protección de Datos Personales en Posesión de los Particulares, ponemos a su disposición el presente Aviso de Privacidad.</p>
+
+  <h2>1. Responsables del tratamiento de sus datos</h2>
+  <p><strong>Karalv Impulsora Internacional, S.A. de C.V.</strong> (Express Care by Valvoline) y <strong>Ventura Distribución y Servicios, S.A. de C.V.</strong> (High Precision Supply), ambas con domicilio en <span class="placeholder">[domicilio fiscal pendiente de completar]</span>, Chihuahua, Chihuahua, México, son responsables del tratamiento de los datos personales que usted nos proporcione a través de este portal, en su carácter de proveedor de bienes o servicios.</p>
+
+  <h2>2. Datos personales que recabamos</h2>
+  <p>Para las finalidades señaladas en este aviso, podemos recabar los siguientes datos personales:</p>
+  <ul>
+    <li>Nombre o razón social, y Registro Federal de Contribuyentes (RFC)</li>
+    <li>Nombre del contacto, teléfono y correo electrónico</li>
+    <li>Forma de pago acordada</li>
+    <li>Facturas (CFDI en PDF y XML) y sus Notas de Crédito relacionadas</li>
+    <li>Evidencias de entrega de mercancía o servicio</li>
+    <li>Comprobantes de transferencia bancaria relacionados con los pagos que le realizamos</li>
+  </ul>
+  <p>No recabamos datos personales sensibles a través de este portal.</p>
+
+  <h2>3. Finalidades del tratamiento</h2>
+  <p>Sus datos personales serán utilizados para las siguientes finalidades, necesarias para la relación comercial que sostenemos con usted:</p>
+  <ul>
+    <li>Registrar y validar las facturas que usted emite a nuestro favor</li>
+    <li>Generar el contrarecibo correspondiente a cada factura</li>
+    <li>Calcular fechas de vencimiento y programar sus pagos</li>
+    <li>Procesar y confirmar los pagos realizados, y darle seguimiento a sus Complementos de Pago</li>
+    <li>Comunicarnos con usted sobre el estatus de sus facturas y pagos</li>
+    <li>Dar cumplimiento a nuestras obligaciones fiscales y contables</li>
+  </ul>
+  <p>No utilizamos sus datos para finalidades secundarias (como mercadotecnia o publicidad).</p>
+
+  <h2>4. Transferencia de datos</h2>
+  <p>Sus datos personales no se comparten ni transfieren a ningún tercero ajeno a Karalv Impulsora Internacional, S.A. de C.V. y Ventura Distribución y Servicios, S.A. de C.V. El sistema utiliza infraestructura de cómputo en la nube (Google Firebase) únicamente como medio de almacenamiento técnico, sin que dicho proveedor de infraestructura tenga acceso para fines propios sobre sus datos.</p>
+
+  <h2>5. Derechos ARCO</h2>
+  <p>Usted tiene derecho a conocer qué datos personales tenemos de usted, para qué los utilizamos, y las condiciones del uso que les damos (Acceso). Asimismo, es su derecho solicitar la corrección de su información personal en caso de que esté desactualizada, sea inexacta o incompleta (Rectificación); que la eliminemos de nuestros registros cuando considere que no está siendo utilizada conforme a los principios, deberes y obligaciones previstas en la normativa (Cancelación); así como oponerse al uso de sus datos personales para fines específicos (Oposición).</p>
+  <div class="tarjeta">
+    Para ejercer cualquiera de estos derechos (ARCO), envíe su solicitud al correo:<br>
+    <strong>admon@expresscarecuu.com</strong><br>
+    incluyendo su nombre, el derecho que desea ejercer, y copia de un documento que acredite su identidad o la de su representante legal.
+  </div>
+
+  <h2>6. Cambios al aviso de privacidad</h2>
+  <p>Nos reservamos el derecho de efectuar en cualquier momento modificaciones al presente Aviso de Privacidad. Cualquier cambio será publicado en esta misma página.</p>
+
+  <div class="pie">
+    Última actualización: <span class="placeholder">[fecha pendiente de completar]</span><br>
+    Sistema de Registro de Facturas y Proveedores
+  </div>
+</div>
+
+</body>
+</html>
