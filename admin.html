@@ -260,6 +260,7 @@
     <button class="tab-btn" data-tab="aprobados" onclick="cambiarTab('aprobados')">Aprobados</button>
     <button class="tab-btn" data-tab="pagos" onclick="cambiarTab('pagos')">Pagos <span class="tab-contador" id="contadorPagos"></span></button>
     <button class="tab-btn" data-tab="cuentas" onclick="cambiarTab('cuentas')">Estado de Cuenta</button>
+    <button class="tab-btn" data-tab="mantenimiento" onclick="cambiarTab('mantenimiento')">Mantenimiento</button>
     <button onclick="actualizarPestanaActiva(true)" title="Actualizar esta pestaña ahora" style="margin-left:auto; background:var(--azul); border:none; border-radius:8px; padding:9px 16px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#fff; white-space:nowrap;">🔄 Actualizar</button>
   </div>
 
@@ -381,6 +382,13 @@
     <h1>Estado de Cuenta por Proveedor</h1>
     <p class="subtitulo" id="resumenEstadoCuenta">Cargando...</p>
     <div id="tablaEstadoCuenta"></div>
+  </div>
+
+  <div class="tab-pane" id="tab-mantenimiento" style="display:none;">
+    <h1>Mantenimiento — corrección de montos históricos</h1>
+    <p class="subtitulo">Herramienta de una sola vez (30-sep-2026) para corregir facturas que se registraron con el SubTotal en vez del Total, antes de que se corrigiera ese error. Vuelve a leer el XML real de cada factura ya guardada y compara — no cambia nada hasta que lo confirmes explícitamente.</p>
+    <button onclick="verDiagnosticoMontos()" id="btnDiagnosticoMontos" style="width:auto; padding:12px 20px; background:var(--azul); color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.95rem;">Ver diagnóstico</button>
+    <div id="resultadoDiagnosticoMontos" style="margin-top:20px;"></div>
   </div>
 </div>
 
@@ -1036,11 +1044,26 @@
             ✅ Se detectó automáticamente: <b>${f.folioFactura}</b> (${f.folioContrarecibo || 'sin contrarecibo'})
             — Saldo pendiente actual: <b>$${Number(f.saldoPendiente).toLocaleString('es-MX', {minimumFractionDigits:2})}</b>
           </div>`;
+      } else if (nc.facturasCandidatas && nc.facturasCandidatas.length > 0) {
+        const opciones = nc.facturasCandidatas.map(f => {
+          const saldoTexto = Number(f.saldoPendiente).toLocaleString('es-MX', { minimumFractionDigits: 2 });
+          const etiqueta = `${f.folioFactura || f.fila} (${f.folioContrarecibo || 'sin contrarecibo'}) — saldo pendiente: $${saldoTexto}`;
+          return `<option value="${f.fila}">${etiqueta}</option>`;
+        }).join('');
+        bloqueFactura = `
+          <div class="tarjeta alerta" style="margin:10px 0;">
+            ⚠️ No se detectó automáticamente a qué factura aplica. Elige la factura de este proveedor a la que corresponde:
+            <select id="facturaManual_${nc.fila}" style="margin-top:8px; width:100%; max-width:420px;">
+              <option value="">Selecciona una factura...</option>
+              ${opciones}
+            </select>
+          </div>`;
       } else {
         bloqueFactura = `
           <div class="tarjeta alerta" style="margin:10px 0;">
-            ⚠️ No se detectó automáticamente a qué factura aplica. Indica el ID de la factura (lo encuentras en la pestaña "Facturas" o "Contrarecibos"):
-            <input type="text" id="facturaManual_${nc.fila}" placeholder="ID de la factura" style="margin-top:8px; width:100%; max-width:340px;">
+            ⚠️ No se detectó automáticamente a qué factura aplica, y no se encontró ninguna factura de este proveedor
+            con saldo pendiente en el sistema. Verifica que la factura correspondiente ya haya sido registrada y validada
+            antes de aplicar esta Nota de Crédito.
           </div>`;
       }
 
@@ -1528,6 +1551,142 @@
         </tbody>
       </table>
     `;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // MANTENIMIENTO — corrección de montos históricos (30-sep-2026)
+  // Herramienta de una sola vez. Primero se corre el diagnóstico
+  // (no cambia nada), y solo si lo confirmas se aplica la corrección.
+  // ══════════════════════════════════════════════════════════════
+
+  function formatoMoneda(n) {
+    return Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2 });
+  }
+
+  function pintarErroresMontos(errores) {
+    if (!errores || errores.length === 0) return '';
+    const filas = errores.map(e => `<li>${e.proveedor || 'Proveedor desconocido'} — folio ${e.folioFiscal}: ${e.motivo}</li>`).join('');
+    return `<div class="tarjeta" style="margin-top:14px; border:2px solid #c7d0d8;">
+      <h3 style="color:#5b6b7a;">${errores.length} factura(s) no se pudieron revisar</h3>
+      <ul style="margin:6px 0 0 18px; padding:0; color:#5b6b7a; font-size:0.88rem;">${filas}</ul>
+    </div>`;
+  }
+
+  async function verDiagnosticoMontos() {
+    const btn = document.getElementById('btnDiagnosticoMontos');
+    const cont = document.getElementById('resultadoDiagnosticoMontos');
+    btn.disabled = true;
+    btn.textContent = '⏳ Revisando todas las facturas contra su XML...';
+    cont.innerHTML = '';
+
+    try {
+      const resp = await fetch(URL_APPS_SCRIPT, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'diagnosticoMontosHistoricos', password: clave })
+      });
+      const r = await resp.json();
+      btn.disabled = false;
+      btn.textContent = 'Ver diagnóstico';
+
+      if (!r.ok) {
+        cont.innerHTML = `<div class="tarjeta" style="border:2px solid var(--rojo);">❌ ${r.error}</div>`;
+        return;
+      }
+      pintarDiagnosticoMontos(r);
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = 'Ver diagnóstico';
+      cont.innerHTML = `<div class="tarjeta" style="border:2px solid var(--rojo);">❌ Ocurrió un error de conexión. Intenta de nuevo.</div>`;
+    }
+  }
+
+  function pintarDiagnosticoMontos(r) {
+    const cont = document.getElementById('resultadoDiagnosticoMontos');
+
+    if (r.facturasAfectadas === 0) {
+      cont.innerHTML =
+        `<div class="tarjeta" style="border:2px solid var(--verde);">✅ Se revisaron ${r.revisadas} factura(s) y ninguna tiene el monto equivocado. No hay nada que corregir.</div>` +
+        pintarErroresMontos(r.errores);
+      return;
+    }
+
+    const filas = r.afectadas.map(f => `
+      <tr>
+        <td>${f.proveedor}</td>
+        <td>${f.folioFactura || f.folioFiscal}</td>
+        <td><span class="badge-empresa ${f.empresa === 'KARALV' ? 'karalv' : 'ventura'}">${f.empresa}</span></td>
+        <td style="text-align:right; color:var(--rojo);">$${formatoMoneda(f.montoActual)}</td>
+        <td style="text-align:right; font-weight:700; color:var(--verde);">$${formatoMoneda(f.montoCorrecto)}</td>
+        <td style="text-align:right;">$${formatoMoneda(f.diferencia)}</td>
+        <td style="text-align:right; font-weight:700;">$${formatoMoneda(f.saldoPendienteNuevo)}</td>
+        <td>${f.tieneContrarecibo ? '⚠️ ' + f.folioContrarecibo : '—'}</td>
+      </tr>`).join('');
+
+    const avisoContrarecibos = r.conContrareciboYaGenerado > 0
+      ? `<div class="tarjeta" style="margin:14px 0; border:2px solid #e3a21a;">
+          ⚠️ ${r.conContrareciboYaGenerado} de estas facturas ya tienen un contrarecibo en PDF generado (y es posible que ya se le haya enviado por correo al proveedor) con el monto VIEJO.
+          Aplicar esta corrección arregla los números dentro del sistema (Vencimientos, Estado de Cuenta, Pagos, reportes), pero <b>NO vuelve a generar ni reenvía esos PDFs</b> —
+          si quieres que también se corrijan esos PDFs y se decida si hace falta reenviarlos al proveedor, dímelo aparte antes o después de aplicar esto.
+        </div>`
+      : '';
+
+    cont.innerHTML = `
+      <div class="tarjeta" style="border:2px solid #e3a21a;">
+        <h3>${r.facturasAfectadas} factura(s) con el monto equivocado — diferencia total: $${formatoMoneda(r.totalDiferencia)}</h3>
+        <p class="rfc">Se revisaron ${r.revisadas} factura(s) en total, comparando cada una contra su propio XML real guardado.</p>
+      </div>
+      ${avisoContrarecibos}
+      <table class="tabla-proveedores" style="margin-top:14px;">
+        <thead><tr>
+          <th>Proveedor</th><th>Factura</th><th>Empresa</th>
+          <th style="text-align:right;">Monto actual (mal)</th><th style="text-align:right;">Monto correcto</th>
+          <th style="text-align:right;">Diferencia</th><th style="text-align:right;">Saldo pendiente nuevo</th>
+          <th>Contrarecibo</th>
+        </tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+      ${pintarErroresMontos(r.errores)}
+      <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--borde);">
+        <button onclick="aplicarCorreccionMontos()" id="btnAplicarCorreccionMontos" style="width:auto; padding:12px 24px; background:var(--rojo); color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:1rem;">Sí, aplicar la corrección a estas ${r.facturasAfectadas} factura(s)</button>
+        <p class="subtitulo" style="margin-top:10px; margin-bottom:0;">Esto actualiza el monto y el saldo pendiente de cada factura de la lista de arriba, directamente en el sistema. No hay un botón para deshacerlo — si después necesitas revertirlo, avísame.</p>
+      </div>
+    `;
+  }
+
+  async function aplicarCorreccionMontos() {
+    const btn = document.getElementById('btnAplicarCorreccionMontos');
+    btn.disabled = true;
+    btn.textContent = '⏳ Aplicando corrección...';
+
+    try {
+      const resp = await fetch(URL_APPS_SCRIPT, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'corregirMontosHistoricos', password: clave, confirmar: true })
+      });
+      const r = await resp.json();
+
+      if (!r.ok) {
+        document.getElementById('resultadoDiagnosticoMontos').innerHTML = `<div class="tarjeta" style="border:2px solid var(--rojo);">❌ ${r.error}</div>`;
+        return;
+      }
+
+      const avisoFinal = r.advertenciaContrarecibos.length > 0
+        ? `<div class="tarjeta" style="margin-top:14px; border:2px solid #e3a21a;">
+            ⚠️ Recuerda: ${r.advertenciaContrarecibos.length} contrarecibo(s) en PDF ya generado(s) (folio(s): ${r.advertenciaContrarecibos.map(a => a.folioContrarecibo).join(', ')})
+            siguen mostrando el monto viejo — avísame si quieres que los regenere, y decidimos juntos si hace falta reenviarlos al proveedor.
+          </div>`
+        : '';
+
+      document.getElementById('resultadoDiagnosticoMontos').innerHTML = `
+        <div class="tarjeta" style="border:2px solid var(--verde);">
+          <h3>✅ Corrección aplicada — ${r.facturasCorregidas} factura(s) corregida(s), diferencia total $${formatoMoneda(r.totalDiferencia)}</h3>
+          <p class="rfc">Ya puedes revisar las pestañas de Vencimientos, Estado de Cuenta y Pagos — los montos ya están corregidos.</p>
+        </div>
+        ${avisoFinal}
+      `;
+    } catch (err) {
+      document.getElementById('resultadoDiagnosticoMontos').innerHTML = `<div class="tarjeta" style="border:2px solid var(--rojo);">❌ Ocurrió un error de conexión. La corrección puede haber quedado a medias — vuelve a correr el diagnóstico para revisar antes de intentar de nuevo.</div>`;
+    }
   }
 </script>
 
