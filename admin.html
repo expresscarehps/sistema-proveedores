@@ -1043,12 +1043,30 @@
       const fechaTexto = nc.fechaEmision ? new Date(nc.fechaEmision).toLocaleDateString('es-MX') : '—';
 
       let bloqueFactura;
+      let puedeAplicar = true;
       if (nc.facturaEncontrada) {
         const f = nc.facturaEncontrada;
         bloqueFactura = `
           <div class="tarjeta" style="margin:10px 0;">
             ✅ Se detectó automáticamente: <b>${f.folioFactura}</b> (${f.folioContrarecibo || 'sin contrarecibo'})
             — Saldo pendiente actual: <b>$${Number(f.saldoPendiente).toLocaleString('es-MX', {minimumFractionDigits:2})}</b>
+          </div>`;
+      } else if (nc.facturaFaltante) {
+        puedeAplicar = false;
+        bloqueFactura = `
+          <div class="tarjeta" style="margin:10px 0; border:2px solid var(--rojo);">
+            🛑 El XML de esta Nota de Crédito está relacionado con el folio fiscal (UUID):
+            <div style="font-family:monospace; font-size:0.85rem; margin:6px 0; word-break:break-all;"><b>${nc.uuidRelacionadoXML}</b></div>
+            Esa factura <b>no está registrada</b> en el sistema (o pertenece a otro proveedor), así que esta nota
+            <b>no se puede aplicar a otra factura</b>. Pide al proveedor que suba esa factura al portal: en cuanto
+            se registre y la valides, esta nota se relacionará sola.
+          </div>`;
+      } else if (nc.xmlNoLegible) {
+        puedeAplicar = false;
+        bloqueFactura = `
+          <div class="tarjeta alerta" style="margin:10px 0;">
+            ⚠️ No se pudo leer el XML de esta Nota de Crédito para verificar a qué factura corresponde.
+            Recarga la página en un momento; si sigue igual, avísame.
           </div>`;
       } else if (nc.facturasCandidatas && nc.facturasCandidatas.length > 0) {
         const opciones = nc.facturasCandidatas.map(f => {
@@ -1086,7 +1104,9 @@
           </div>
           ${bloqueFactura}
           <div style="display:flex; gap:10px; margin-top:6px;">
-            <button onclick="aplicarNotaCredito('${nc.fila}')" style="width:auto; padding:10px 20px; background:var(--verde); color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer;">Aplicar</button>
+            ${puedeAplicar
+              ? `<button onclick="aplicarNotaCredito('${nc.fila}')" style="width:auto; padding:10px 20px; background:var(--verde); color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer;">Aplicar</button>`
+              : `<button disabled title="No se puede aplicar hasta que su factura esté registrada" style="width:auto; padding:10px 20px; background:#c7d0d8; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:not-allowed;">Aplicar</button>`}
             <button onclick="rechazarNotaCreditoUI('${nc.fila}')" style="width:auto; padding:10px 20px; background:none; color:var(--rojo); border:1px solid var(--rojo); border-radius:8px; font-weight:700; cursor:pointer;">Rechazar</button>
           </div>
         </div>`;
