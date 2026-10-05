@@ -260,7 +260,6 @@
     <button class="tab-btn" data-tab="aprobados" onclick="cambiarTab('aprobados')">Aprobados</button>
     <button class="tab-btn" data-tab="pagos" onclick="cambiarTab('pagos')">Pagos <span class="tab-contador" id="contadorPagos"></span></button>
     <button class="tab-btn" data-tab="cuentas" onclick="cambiarTab('cuentas')">Estado de Cuenta</button>
-    <button class="tab-btn" data-tab="mantenimiento" onclick="cambiarTab('mantenimiento')">Mantenimiento</button>
     <button onclick="actualizarPestanaActiva(true)" title="Actualizar esta pestaña ahora" style="margin-left:auto; background:var(--azul); border:none; border-radius:8px; padding:9px 16px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#fff; white-space:nowrap;">🔄 Actualizar</button>
   </div>
 
@@ -382,19 +381,6 @@
     <h1>Estado de Cuenta por Proveedor</h1>
     <p class="subtitulo" id="resumenEstadoCuenta">Cargando...</p>
     <div id="tablaEstadoCuenta"></div>
-  </div>
-
-  <div class="tab-pane" id="tab-mantenimiento" style="display:none;">
-    <h1>Mantenimiento — corrección de datos históricos</h1>
-    <p class="subtitulo">Herramienta de una sola vez (30-sep / 5-oct-2026). Se usa en este orden: <b>Paso 1</b> auditar que cada Nota de Crédito y cada Complemento de Pago estén bien relacionados con su factura; <b>Paso 2</b> ver el diagnóstico de montos (facturas y notas de crédito guardadas con SubTotal en vez de Total). Ninguno de los dos pasos cambia nada: solo la corrección final, y solo si la confirmas explícitamente.</p>
-
-    <h2 style="font-size:1.05rem; margin:18px 0 8px;">Paso 1 — Auditoría de relaciones (solo lectura)</h2>
-    <button onclick="verAuditoriaRelaciones()" id="btnAuditoriaRelaciones" style="width:auto; padding:12px 20px; background:var(--azul); color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.95rem;">Auditar notas de crédito y complementos</button>
-    <div id="resultadoAuditoriaRelaciones" style="margin-top:20px;"></div>
-
-    <h2 style="font-size:1.05rem; margin:28px 0 8px;">Paso 2 — Diagnóstico de montos</h2>
-    <button onclick="verDiagnosticoMontos()" id="btnDiagnosticoMontos" style="width:auto; padding:12px 20px; background:var(--azul); color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.95rem;">Ver diagnóstico</button>
-    <div id="resultadoDiagnosticoMontos" style="margin-top:20px;"></div>
   </div>
 </div>
 
