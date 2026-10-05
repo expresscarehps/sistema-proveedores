@@ -1656,6 +1656,7 @@
         <td>${esc(n.estatus)}</td>
         <td style="text-align:right;">$${formatoMoneda(n.montoGuardado)}</td>
         <td>${esc(n.facturaRelacionada) || '—'}</td>
+        <td style="font-size:0.75rem; word-break:break-all;">${esc(n.uuidEnXML) || '—'}</td>
         <td>${icono(n.codigo)} ${esc(n.diagnostico)}</td>
       </tr>`).join('');
 
@@ -1693,7 +1694,7 @@
       ${r.notasCredito.length > 0 ? `
       <h3 style="margin:18px 0 6px;">Notas de crédito</h3>
       <table class="tabla-proveedores">
-        <thead><tr><th>Proveedor</th><th>Folio fiscal</th><th>Estatus</th><th style="text-align:right;">Monto guardado</th><th>Factura relacionada</th><th>Diagnóstico</th></tr></thead>
+        <thead><tr><th>Proveedor</th><th>Folio fiscal</th><th>Estatus</th><th style="text-align:right;">Monto guardado</th><th>Factura relacionada</th><th>Folio fiscal (UUID) al que apunta su XML</th><th>Diagnóstico</th></tr></thead>
         <tbody>${filasNC}</tbody>
       </table>` : '<p class="rfc" style="margin-top:14px;">No hay notas de crédito registradas.</p>'}
 
