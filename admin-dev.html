@@ -232,12 +232,51 @@
   body.rol-consultor [onclick^="rechazarFactura("],
   body.rol-consultor [onclick^="aplicarNotaCredito("],
   body.rol-consultor [onclick^="rechazarNotaCreditoUI("],
+  body.rol-consultor [onclick^="reemitirCR("],
+  body.rol-consultor [onclick^="resolverCR("],
+  body.rol-consultor #btnEnviarCR,
+  body.rol-consultor #inputCorreoCR,
   body.rol-consultor .campos-aprobar,
   body.rol-consultor .check-preaprobacion,
   body.rol-consultor .check-pago,
   body.rol-consultor #barraConfirmarPreaprobacion,
   body.rol-consultor #barraConfirmarPago,
   body.rol-consultor #comprobantesBancariosContenedor { display: none !important; }
+
+  /* Corrección de contrarecibos */
+  .caja-correccion { margin-top: 28px; padding: 18px; background: #fff; border: 1px solid var(--borde); border-radius: 10px; }
+  .caja-correccion h2 { font-size: 1.1rem; color: var(--azul); margin: 0 0 4px 0; }
+  .caja-correccion p { margin: 4px 0 12px 0; font-size: 0.9rem; color: #5b6b7a; }
+  .btn-cr { background: var(--azul); color: #fff; border: 0; border-radius: 6px; padding: 9px 14px; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+  .btn-cr.sec { background: #fff; color: var(--azul); border: 1px solid var(--azul); }
+  .btn-cr.peligro { background: var(--rojo); }
+  .btn-cr.ok { background: var(--verde); }
+  .resumen-cr { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .resumen-cr span { background: var(--gris); border-radius: 14px; padding: 4px 10px; font-size: 0.82rem; }
+  .fila-cr { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--borde); border-radius: 8px; margin-bottom: 8px; background: #fff; }
+  .fila-cr .folio { font-weight: 700; color: var(--azul); }
+  .fila-cr .det { font-size: 0.85rem; color: #5b6b7a; }
+  .insignia-cr { display: inline-block; border-radius: 12px; padding: 2px 9px; font-size: 0.75rem; font-weight: 700; margin-left: 6px; }
+  .insignia-cr.mal { background: #fde8e8; color: var(--rojo); }
+  .insignia-cr.pend { background: #fff3d6; color: #8a6100; }
+  .insignia-cr.bien { background: #e3f4e8; color: var(--verde); }
+  .insignia-cr.gris { background: #e8ecef; color: #44525f; }
+  #fondoCR { display: none; position: fixed; inset: 0; background: rgba(20,30,40,0.55); z-index: 1000; overflow-y: auto; padding: 24px 12px; }
+  #cajaModalCR { max-width: 820px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 22px; position: relative; }
+  #cajaModalCR h3 { margin: 0 0 10px 0; color: var(--azul); }
+  #cerrarModalCR { position: absolute; top: 10px; right: 14px; background: none; border: 0; font-size: 1.6rem; cursor: pointer; color: #5b6b7a; }
+  .tabla-modal-cr { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 12px; }
+  .tabla-modal-cr td { padding: 6px 8px; border-bottom: 1px solid var(--gris); vertical-align: top; }
+  .tabla-modal-cr td:first-child { color: #5b6b7a; width: 34%; }
+  .paso-cr { border: 1px solid var(--borde); border-radius: 8px; padding: 12px 14px; margin: 12px 0; }
+  .paso-cr h4 { margin: 0 0 6px 0; font-size: 0.95rem; }
+  .paso-cr.hecho { background: #f2faf4; border-color: #b9dcc4; }
+  .paso-cr.bloqueado { opacity: 0.55; }
+  .correo-previa { white-space: pre-wrap; background: var(--gris); border: 1px solid var(--borde); border-radius: 6px; padding: 10px 12px; font-size: 0.88rem; margin: 6px 0 10px 0; }
+  #marcoPdfCR { width: 100%; height: 520px; border: 1px solid var(--borde); border-radius: 6px; margin-top: 8px; }
+  .aviso-cr { background: #fff8e5; border: 1px solid #f0dca0; color: #6b4e00; border-radius: 6px; padding: 8px 10px; font-size: 0.86rem; margin: 8px 0; }
+  .error-cr { background: #fde8e8; border: 1px solid #f0b5b5; color: var(--rojo); border-radius: 6px; padding: 8px 10px; font-size: 0.88rem; margin: 8px 0; }
+  .input-cr { width: 100%; padding: 9px 10px; border: 1px solid var(--borde); border-radius: 6px; font-size: 0.92rem; margin: 6px 0; }
 
   /* Pestaña Usuarios */
   .form-usuario { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin: 8px 0 18px 0; }
@@ -404,6 +443,20 @@
       <button id="btnToggleContrarecibos" onclick="toggleContrarecibos()" class="btn-toggle">Ver lista ▾</button>
     </div>
     <div id="listaContrarecibos" style="display:none; margin-top:16px;"></div>
+
+    <div class="caja-correccion" id="cajaCorreccion">
+      <h2>Corrección de contrarecibos con monto equivocado</h2>
+      <p>Lee cada PDF de contrarecibo y compara el monto que dice contra el monto correcto de la factura. <b>Revisar no cambia nada ni manda ningún correo.</b> Cada corrección se hace una por una: primero se ve el PDF corregido, luego se guarda, y el correo al proveedor es un paso aparte que tú confirmas.</p>
+      <button class="btn-cr" id="btnRevisarCR" onclick="revisarCR()">🔍 Revisar montos de los contrarecibos</button>
+      <div id="resultadoRevisionCR"></div>
+    </div>
+
+    <div id="fondoCR" onclick="if(event.target===this)cerrarModalCR()">
+      <div id="cajaModalCR">
+        <button id="cerrarModalCR" onclick="cerrarModalCR()" title="Cerrar">×</button>
+        <div id="contenidoModalCR"></div>
+      </div>
+    </div>
   </div>
 
   <div class="tab-pane" id="tab-aprobados" style="display:none;">
@@ -1139,6 +1192,291 @@
         <a href="${c.urlContrarecibo}" target="_blank" rel="noopener">Ver PDF</a>
       </div>
     `).join('');
+  }
+
+  // ====== CORRECCIÓN DE CONTRARECIBOS (uno por uno, con confirmación) ======
+
+  let revisionCR = null;       // última revisión recibida del servidor
+  let filaAbiertaCR = null;    // factura abierta en la ventana
+  let ocupadoCR = false;       // evita dos acciones a la vez
+  let vistaPreviaVistaCR = {}; // fila -> true cuando ya se vio el PDF corregido en esta ventana
+  let urlPdfCR = null;
+
+  const dineroCR = (n) => '$' + Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2 });
+  const fechaHoraCR = (iso) => iso ? new Date(iso).toLocaleString('es-MX', { timeZone: 'America/Chihuahua', dateStyle: 'short', timeStyle: 'short' }) : '';
+
+  async function apiCR(accion, extra) {
+    const resp = await fetch(URL_APPS_SCRIPT, {
+      method: 'POST',
+      body: JSON.stringify(Object.assign({ action: accion, password: clave }, extra || {}))
+    });
+    return await resp.json();
+  }
+
+  const ETIQUETAS_CR = {
+    DESACTUALIZADO:       ['mal',  'Monto equivocado'],
+    NO_LEIBLE:            ['gris', 'No se pudo leer'],
+    ENVIO_INTERRUMPIDO:   ['pend', 'Envío por confirmar'],
+    REEMITIDO_SIN_CORREO: ['pend', 'Corregido, falta enviar'],
+    CORREGIDO_ENVIADO:    ['bien', 'Corregido y enviado']
+  };
+
+  async function revisarCR() {
+    if (ocupadoCR) return;
+    ocupadoCR = true;
+    const btn = document.getElementById('btnRevisarCR');
+    const caja = document.getElementById('resultadoRevisionCR');
+    btn.disabled = true; btn.textContent = 'Leyendo los PDF…';
+    caja.innerHTML = '<p>Esto tarda unos segundos: se lee cada contrarecibo.</p>';
+    try {
+      const r = await apiCR('revisarContrarecibos');
+      if (!r.ok) { caja.innerHTML = `<div class="error-cr">${esc(r.error || 'No se pudo revisar.')}</div>`; return; }
+      revisionCR = r;
+      pintarRevisionCR();
+    } catch (e) {
+      caja.innerHTML = '<div class="error-cr">Ocurrió un error de conexión. Intenta de nuevo.</div>';
+    } finally {
+      ocupadoCR = false; btn.disabled = false; btn.textContent = '🔄 Volver a revisar';
+    }
+  }
+
+  function pintarRevisionCR() {
+    const caja = document.getElementById('resultadoRevisionCR');
+    const r = revisionCR.resumen;
+    let h = `<div class="resumen-cr">
+      <span>Revisados: <b>${r.revisados}</b></span>
+      <span>Correctos: <b>${r.ok}</b></span>
+      <span>Con monto equivocado: <b>${r.desactualizados}</b></span>
+      <span>Corregidos sin enviar: <b>${r.reemitidosSinCorreo}</b></span>
+      <span>Corregidos y enviados: <b>${r.enviados}</b></span>
+      ${r.noLeibles ? `<span>No se pudieron leer: <b>${r.noLeibles}</b></span>` : ''}
+      ${r.envioInterrumpido ? `<span>Envío por confirmar: <b>${r.envioInterrumpido}</b></span>` : ''}
+    </div>`;
+    if (revisionCR.items.length === 0) {
+      h += '<div class="aviso-cr" style="background:#e3f4e8;border-color:#b9dcc4;color:#1e6b3a;">✔ Todos los contrarecibos muestran el monto correcto.</div>';
+    }
+    h += revisionCR.items.map((i) => {
+      const [clase, texto] = ETIQUETAS_CR[i.estado] || ['gris', i.estado];
+      const monto = i.estado === 'DESACTUALIZADO' || i.estado === 'NO_LEIBLE'
+        ? `El PDF dice <b>${i.montoEnPDF === null ? '(ilegible)' : dineroCR(i.montoEnPDF)}</b> · Debe decir <b>${dineroCR(i.montoCorrecto)}</b>`
+        : `Monto correcto: <b>${dineroCR(i.montoCorrecto)}</b>`;
+      return `<div class="fila-cr">
+        <div>
+          <div><span class="folio">${esc(i.folioContrarecibo)}</span><span class="insignia-cr ${clase}">${esc(texto)}</span></div>
+          <div class="det">${esc(i.proveedor)} (${esc(i.empresa)}) · Factura ${esc(i.folioFactura)}</div>
+          <div class="det">${monto}</div>
+        </div>
+        <button class="btn-cr sec" onclick="abrirModalCR('${esc(i.fila)}')">Abrir</button>
+      </div>`;
+    }).join('');
+    caja.innerHTML = h;
+  }
+
+  function itemCR(fila) { return revisionCR && revisionCR.items.find((i) => i.fila === fila); }
+
+  function cerrarModalCR() {
+    if (ocupadoCR) return;
+    document.getElementById('fondoCR').style.display = 'none';
+    if (urlPdfCR) { URL.revokeObjectURL(urlPdfCR); urlPdfCR = null; }
+    filaAbiertaCR = null;
+  }
+
+  function abrirModalCR(fila) {
+    filaAbiertaCR = fila;
+    document.getElementById('fondoCR').style.display = 'block';
+    pintarModalCR();
+  }
+
+  function cabeceraModalCR(i) {
+    return `<h3>${esc(i.folioContrarecibo)} — ${esc(i.proveedor)}</h3>
+      <table class="tabla-modal-cr">
+        <tr><td>Empresa</td><td>${esc(i.empresa)}</td></tr>
+        <tr><td>Factura</td><td>${esc(i.folioFactura)}</td></tr>
+        <tr><td>Monto correcto de la factura</td><td><b>${dineroCR(i.montoCorrecto)}</b></td></tr>
+        <tr><td>Correo del proveedor</td><td>${esc(i.correoProveedor) || '<i>(no encontrado)</i>'}</td></tr>
+      </table>`;
+  }
+
+  function pintarModalCR(mensaje) {
+    const i = itemCR(filaAbiertaCR);
+    const cont = document.getElementById('contenidoModalCR');
+    if (!i) { cont.innerHTML = '<p>Esta factura ya no aparece en la lista de pendientes. Cierra y vuelve a revisar.</p>'; return; }
+    let h = cabeceraModalCR(i);
+    if (mensaje) h += mensaje;
+    const enlaceAnterior = (i.correccion && i.correccion.linkAnterior) ? `<a href="${esc(i.correccion.linkAnterior)}" target="_blank" rel="noopener">Ver PDF anterior (con monto equivocado)</a>` : '';
+
+    if (i.estado === 'NO_LEIBLE') {
+      h += `<div class="error-cr">No se pudo leer con certeza el monto de este PDF${i.errorLectura ? ' (' + esc(i.errorLectura) + ')' : ''}. Por seguridad el sistema no lo corrige solo. Ábrelo y revísalo a mano.</div>
+        <a href="${esc(i.linkPdf)}" target="_blank" rel="noopener">Ver PDF actual</a>`;
+    } else if (i.estado === 'DESACTUALIZADO') {
+      const visto = !!vistaPreviaVistaCR[i.fila];
+      h += `<div class="aviso-cr">El contrarecibo que se le mandó al proveedor dice <b>${dineroCR(i.montoEnPDF)}</b>, pero la factura es de <b>${dineroCR(i.montoCorrecto)}</b>.</div>
+        <div><a href="${esc(i.linkPdf)}" target="_blank" rel="noopener">Ver PDF actual (con monto equivocado)</a></div>
+        <div class="paso-cr${visto ? ' hecho' : ''}">
+          <h4>Paso 1 — Ver cómo quedaría el contrarecibo corregido</h4>
+          <p style="margin:0 0 8px 0;font-size:0.85rem;color:#5b6b7a;">No se guarda nada; es solo para que lo veas.</p>
+          <button class="btn-cr sec" onclick="verPreviaCR('${esc(i.fila)}')">Ver contrarecibo corregido</button>
+          <div id="zonaPdfCR"></div>
+        </div>
+        <div class="paso-cr${visto ? '' : ' bloqueado'}">
+          <h4>Paso 2 — Guardar el contrarecibo corregido</h4>
+          <p style="margin:0 0 8px 0;font-size:0.85rem;color:#5b6b7a;">Mismo folio, con un aviso visible de que está corregido. El PDF anterior se conserva. <b>Esto NO manda ningún correo.</b></p>
+          <button class="btn-cr ok" ${visto ? '' : 'disabled'} onclick="reemitirCR('${esc(i.fila)}')">Guardar contrarecibo corregido</button>
+          ${visto ? '' : '<div class="det" style="font-size:0.8rem;color:#5b6b7a;margin-top:4px;">Primero ve el contrarecibo corregido (paso 1).</div>'}
+        </div>`;
+    } else if (i.estado === 'REEMITIDO_SIN_CORREO') {
+      h += `<div class="paso-cr hecho"><h4>✔ Contrarecibo corregido y guardado</h4>
+          <div class="det">Antes decía ${dineroCR(i.correccion.montoAnterior)} · Ahora dice ${dineroCR(i.montoCorrecto)}${i.correccion.reemitidoPor ? ' · Por ' + esc(i.correccion.reemitidoPor) : ''}${i.correccion.fechaReemision ? ' · ' + esc(fechaHoraCR(i.correccion.fechaReemision)) : ''}</div>
+          <div><a href="${esc(i.linkPdf)}" target="_blank" rel="noopener">Ver PDF corregido</a> &nbsp;·&nbsp; ${enlaceAnterior}</div>
+        </div>
+        <div class="paso-cr">
+          <h4>Paso 3 — Avisar al proveedor por correo</h4>
+          <p style="margin:0 0 8px 0;font-size:0.85rem;color:#5b6b7a;">Primero ves exactamente qué correo saldría. Nada se envía hasta que confirmes.</p>
+          <button class="btn-cr sec" onclick="prepararCorreoCR('${esc(i.fila)}')">Ver el correo que se enviaría</button>
+          <div id="zonaCorreoCR"></div>
+        </div>`;
+    } else if (i.estado === 'ENVIO_INTERRUMPIDO') {
+      h += `<div class="aviso-cr">El envío del correo a <b>${esc(i.correoProveedor)}</b> quedó <b>sin confirmar</b> (se interrumpió justo cuando se mandaba). Revisa la bandeja de <b>enviados</b> de la cuenta de la empresa para ver si salió y dime aquí qué encontraste. Mientras no lo marques, el sistema no vuelve a mandarlo.</div>
+        <button class="btn-cr ok" onclick="resolverCR('${esc(i.fila)}','enviado')">Sí salió el correo</button>
+        <button class="btn-cr sec" onclick="resolverCR('${esc(i.fila)}','no_enviado')">No salió</button>`;
+    } else if (i.estado === 'CORREGIDO_ENVIADO') {
+      h += `<div class="paso-cr hecho"><h4>✔ Corregido y enviado</h4>
+          <div class="det">Antes decía ${dineroCR(i.correccion.montoAnterior)} · Ahora dice ${dineroCR(i.montoCorrecto)}</div>
+          <div class="det">Correo enviado a <b>${esc(i.correccion.correoEnviadoA)}</b>${i.correccion.correoEnviadoEl ? ' el ' + esc(fechaHoraCR(i.correccion.correoEnviadoEl)) : ''}${i.correccion.enviadoPor ? ' por ' + esc(i.correccion.enviadoPor) : ''}</div>
+          <div><a href="${esc(i.linkPdf)}" target="_blank" rel="noopener">Ver PDF corregido</a> &nbsp;·&nbsp; ${enlaceAnterior}</div>
+        </div>`;
+    }
+    cont.innerHTML = h;
+  }
+
+  function mostrarErrorModalCR(texto) { pintarModalCR(`<div class="error-cr">${esc(texto)}</div>`); }
+
+  async function verPreviaCR(fila) {
+    if (ocupadoCR) return;
+    ocupadoCR = true;
+    const zona = document.getElementById('zonaPdfCR');
+    zona.innerHTML = '<p>Armando el PDF…</p>';
+    try {
+      const r = await apiCR('previsualizarContrareciboCorregido', { fila });
+      if (!r.ok) { ocupadoCR = false; mostrarErrorModalCR(r.error || 'No se pudo armar el PDF.'); return; }
+      const bytes = Uint8Array.from(atob(r.pdfBase64), (c) => c.charCodeAt(0));
+      if (urlPdfCR) URL.revokeObjectURL(urlPdfCR);
+      urlPdfCR = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      vistaPreviaVistaCR[fila] = true;
+      zona.innerHTML = `<div class="aviso-cr" style="background:#e3f4e8;border-color:#b9dcc4;color:#1e6b3a;">Verifica que el monto diga <b>${dineroCR(r.montoNuevo)}</b> y que la leyenda de corrección se lea bien. Antes decía ${dineroCR(r.montoAnterior)}.</div>
+        <iframe id="marcoPdfCR" src="${urlPdfCR}"></iframe>
+        <div style="margin-top:6px;"><a href="${urlPdfCR}" target="_blank" rel="noopener">Abrir en otra pestaña</a></div>`;
+      // Se habilita el paso 2 sin reconstruir la ventana (para no perder el PDF en pantalla).
+      const bloqueado = document.querySelector('#contenidoModalCR .paso-cr.bloqueado');
+      if (bloqueado) {
+        bloqueado.classList.remove('bloqueado');
+        const b = bloqueado.querySelector('button'); if (b) b.disabled = false;
+        const nota = bloqueado.querySelector('.det'); if (nota) nota.remove();
+      }
+      const paso1 = document.querySelector('#contenidoModalCR .paso-cr'); if (paso1) paso1.classList.add('hecho');
+    } catch (e) {
+      zona.innerHTML = '<div class="error-cr">Error de conexión. Intenta de nuevo.</div>';
+    } finally { ocupadoCR = false; }
+  }
+
+  async function reemitirCR(fila) {
+    if (ocupadoCR) return;
+    const i = itemCR(fila);
+    if (!i || !vistaPreviaVistaCR[fila]) return;
+    const ok = confirm(
+      'Vas a GUARDAR el contrarecibo corregido:\n\n' +
+      i.folioContrarecibo + ' — ' + i.proveedor + '\n' +
+      'Antes decía: ' + dineroCR(i.montoEnPDF) + '\n' +
+      'Ahora dirá: ' + dineroCR(i.montoCorrecto) + '\n\n' +
+      'Esto NO manda ningún correo. ¿Continuar?');
+    if (!ok) return;
+    ocupadoCR = true;
+    try {
+      const r = await apiCR('reemitirContrarecibo', { fila, montoConfirmado: i.montoCorrecto, montoAnteriorConfirmado: i.montoEnPDF });
+      if (!r.ok) { ocupadoCR = false; mostrarErrorModalCR(r.error || 'No se pudo guardar.'); return; }
+      ocupadoCR = false;
+      await refrescarYReabrirCR(fila, '<div class="aviso-cr" style="background:#e3f4e8;border-color:#b9dcc4;color:#1e6b3a;">✔ Contrarecibo corregido y guardado. Todavía no se ha enviado ningún correo.</div>');
+    } catch (e) {
+      ocupadoCR = false;
+      mostrarErrorModalCR('Error de conexión. Antes de repetir, usa "Volver a revisar" para ver si se guardó.');
+    }
+  }
+
+  async function refrescarYReabrirCR(fila, mensaje) {
+    document.getElementById('contenidoModalCR').innerHTML = '<p>Actualizando…</p>';
+    ocupadoCR = true;
+    try {
+      const r = await apiCR('revisarContrarecibos');
+      if (r.ok) { revisionCR = r; pintarRevisionCR(); }
+    } catch (e) { /* se queda con lo anterior */ }
+    ocupadoCR = false;
+    pintarModalCR(mensaje);
+  }
+
+  async function prepararCorreoCR(fila) {
+    if (ocupadoCR) return;
+    ocupadoCR = true;
+    const zona = document.getElementById('zonaCorreoCR');
+    zona.innerHTML = '<p>Preparando…</p>';
+    try {
+      const r = await apiCR('previsualizarCorreoCorreccion', { fila });
+      if (!r.ok) { ocupadoCR = false; mostrarErrorModalCR(r.error || 'No se pudo preparar el correo.'); return; }
+      zona.innerHTML = `<table class="tabla-modal-cr">
+          <tr><td>De</td><td>${esc(r.de || ('La cuenta de correo de ' + r.remitenteEmpresa))}</td></tr>
+          <tr><td>Para</td><td><b>${esc(r.para)}</b> (${esc(r.proveedor)})</td></tr>
+          <tr><td>Asunto</td><td>${esc(r.asunto)}</td></tr>
+          <tr><td>Adjunto</td><td>${esc(r.adjunto)} · <a href="${esc(r.linkAdjunto)}" target="_blank" rel="noopener">Ver el PDF que va adjunto</a></td></tr>
+        </table>
+        <div class="correo-previa">${esc(r.cuerpo)}</div>
+        <label style="font-size:0.85rem;font-weight:600;">Para confirmar, escribe el correo del destinatario tal como aparece arriba:</label>
+        <input class="input-cr" id="inputCorreoCR" type="email" autocomplete="off" placeholder="correo del proveedor" oninput="validarCorreoCR()">
+        <button class="btn-cr peligro" id="btnEnviarCR" disabled onclick="enviarCorreoCR('${esc(fila)}','${esc(r.para)}')">Enviar correo ahora</button>`;
+    } catch (e) {
+      zona.innerHTML = '<div class="error-cr">Error de conexión. Intenta de nuevo.</div>';
+    } finally { ocupadoCR = false; }
+  }
+
+  function validarCorreoCR() {
+    const i = itemCR(filaAbiertaCR);
+    const esperado = i ? String(i.correoProveedor || '').trim().toLowerCase() : '';
+    const escrito = String(document.getElementById('inputCorreoCR').value || '').trim().toLowerCase();
+    document.getElementById('btnEnviarCR').disabled = !(esperado && escrito === esperado);
+  }
+
+  async function enviarCorreoCR(fila, para) {
+    if (ocupadoCR) return;
+    const i = itemCR(fila);
+    const escrito = document.getElementById('inputCorreoCR').value.trim();
+    const ok = confirm(
+      'Vas a ENVIAR un correo real a:\n\n' + para + '\n\n' +
+      'Contrarecibo corregido ' + i.folioContrarecibo + ' (' + i.proveedor + ')\n' +
+      'Monto correcto: ' + dineroCR(i.montoCorrecto) + '\n\n' +
+      'Esto no se puede deshacer. ¿Enviar?');
+    if (!ok) return;
+    ocupadoCR = true;
+    document.getElementById('btnEnviarCR').disabled = true;
+    try {
+      const r = await apiCR('enviarCorreoCorreccion', { fila, correoConfirmado: escrito });
+      ocupadoCR = false;
+      if (!r.ok) { mostrarErrorModalCR(r.error || 'No se pudo enviar.'); return; }
+      await refrescarYReabrirCR(fila, `<div class="aviso-cr" style="background:#e3f4e8;border-color:#b9dcc4;color:#1e6b3a;">✔ ${esc(r.mensaje || 'Correo enviado.')}${r.advertencia ? '<br><b>' + esc(r.advertencia) + '</b>' : ''}</div>`);
+    } catch (e) {
+      ocupadoCR = false;
+      mostrarErrorModalCR('Error de conexión. NO repitas el envío todavía: usa "Volver a revisar" para ver si el correo quedó marcado como enviado o por confirmar.');
+    }
+  }
+
+  async function resolverCR(fila, resultado) {
+    if (ocupadoCR) return;
+    const txt = resultado === 'enviado' ? 'Confirmas que el correo SÍ salió y no se volverá a enviar.' : 'Confirmas que el correo NO salió; quedará disponible para enviarlo de nuevo.';
+    if (!confirm(txt + ' ¿Continuar?')) return;
+    ocupadoCR = true;
+    try {
+      const r = await apiCR('resolverEnvioInterrumpido', { fila, resultado });
+      ocupadoCR = false;
+      if (!r.ok) { mostrarErrorModalCR(r.error || 'No se pudo registrar.'); return; }
+      await refrescarYReabrirCR(fila, '<div class="aviso-cr" style="background:#e3f4e8;border-color:#b9dcc4;color:#1e6b3a;">✔ Registrado.</div>');
+    } catch (e) { ocupadoCR = false; mostrarErrorModalCR('Error de conexión.'); }
   }
 
   // ====== PROVEEDORES APROBADOS (condiciones acordadas) ======
