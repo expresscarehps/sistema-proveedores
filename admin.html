@@ -1197,7 +1197,9 @@
       method: 'POST',
       body: JSON.stringify(Object.assign({ action: accion, password: clave }, extra || {}))
     });
-    return await resp.json();
+    let texto = '';
+    try { texto = await resp.text(); } catch (e) { throw new Error('No se pudo leer la respuesta del servidor (HTTP ' + resp.status + ').'); }
+    try { return JSON.parse(texto); } catch (e) { throw new Error('El servidor respondió HTTP ' + resp.status + ' con algo que no es JSON: ' + texto.slice(0, 120)); }
   }
 
   const ETIQUETAS_CR = {
@@ -1362,7 +1364,7 @@
       }
       const paso1 = document.querySelector('#contenidoModalCR .paso-cr'); if (paso1) paso1.classList.add('hecho');
     } catch (e) {
-      zona.innerHTML = '<div class="error-cr">Error de conexión. Intenta de nuevo.</div>';
+      zona.innerHTML = '<div class="error-cr">Error de conexión. Intenta de nuevo.<br><span style="font-size:0.8rem;">Detalle técnico: ' + esc(String((e && e.message) || e)) + '</span></div>';
     } finally { ocupadoCR = false; }
   }
 
