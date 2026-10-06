@@ -276,6 +276,7 @@
   #marcoPdfCR { width: 100%; height: 520px; border: 1px solid var(--borde); border-radius: 6px; margin-top: 8px; }
   .aviso-cr { background: #fff8e5; border: 1px solid #f0dca0; color: #6b4e00; border-radius: 6px; padding: 8px 10px; font-size: 0.86rem; margin: 8px 0; }
   .error-cr { background: #fde8e8; border: 1px solid #f0b5b5; color: var(--rojo); border-radius: 6px; padding: 8px 10px; font-size: 0.88rem; margin: 8px 0; }
+  body.rol-consultor .solo-admin-cr { display: none !important; }
   .input-cr { width: 100%; padding: 9px 10px; border: 1px solid var(--borde); border-radius: 6px; font-size: 0.92rem; margin: 6px 0; }
 
   /* Pestaña Usuarios */
@@ -1238,6 +1239,7 @@
       ${r.noLeibles ? `<span>No se pudieron leer: <b>${r.noLeibles}</b></span>` : ''}
       ${r.envioInterrumpido ? `<span>Envío por confirmar: <b>${r.envioInterrumpido}</b></span>` : ''}
     </div>`;
+    h += pintarGruposCR();
     if (revisionCR.items.length === 0) {
       h += '<div class="aviso-cr" style="background:#e3f4e8;border-color:#b9dcc4;color:#1e6b3a;">✔ Todos los contrarecibos muestran el monto correcto.</div>';
     }
@@ -1264,7 +1266,7 @@
     if (ocupadoCR) return;
     document.getElementById('fondoCR').style.display = 'none';
     if (urlPdfCR) { URL.revokeObjectURL(urlPdfCR); urlPdfCR = null; }
-    filaAbiertaCR = null;
+    filaAbiertaCR = null; grupoAbiertoCR = null; previaCR = null;
   }
 
   function abrirModalCR(fila) {
@@ -1317,12 +1319,11 @@
         </div>
         <div class="paso-cr">
           <h4>Paso 3 — Avisar al proveedor por correo</h4>
-          <p style="margin:0 0 8px 0;font-size:0.85rem;color:#5b6b7a;">Primero ves exactamente qué correo saldría. Nada se envía hasta que confirmes.</p>
-          <button class="btn-cr sec" onclick="prepararCorreoCR('${esc(i.fila)}')">Ver el correo que se enviaría</button>
-          <div id="zonaCorreoCR"></div>
+          <p style="margin:0 0 8px 0;font-size:0.85rem;color:#5b6b7a;">El correo se manda <b>por proveedor</b>, con todos sus contrarecibos corregidos juntos. Este contrarecibo irá en el correo a ${esc(i.proveedor)} (${esc(i.empresa)}).</p>
+          <button class="btn-cr sec" onclick="abrirGrupoPorFilaCR('${esc(i.fila)}')">Ir al correo de este proveedor</button>
         </div>`;
     } else if (i.estado === 'ENVIO_INTERRUMPIDO') {
-      h += `<div class="aviso-cr">El envío del correo a <b>${esc(i.correoProveedor)}</b> quedó <b>sin confirmar</b> (se interrumpió justo cuando se mandaba). Revisa la bandeja de <b>enviados</b> de la cuenta de la empresa para ver si salió y dime aquí qué encontraste. Mientras no lo marques, el sistema no vuelve a mandarlo.</div>
+      h += `<div class="aviso-cr">El envío del correo a <b>${esc(i.correoProveedor)}</b> quedó <b>sin confirmar</b> (se interrumpió justo cuando se mandaba). Revisa la bandeja de <b>enviados</b> de la cuenta de la empresa para ver si salió y dime aquí qué encontraste. Mientras no lo marques, el sistema no vuelve a mandarlo. Tu respuesta aplica a <b>todos los contrarecibos de ese mismo correo</b>.</div>
         <button class="btn-cr ok" onclick="resolverCR('${esc(i.fila)}','enviado')">Sí salió el correo</button>
         <button class="btn-cr sec" onclick="resolverCR('${esc(i.fila)}','no_enviado')">No salió</button>`;
     } else if (i.estado === 'CORREGIDO_ENVIADO') {
@@ -1390,66 +1391,163 @@
 
   async function refrescarYReabrirCR(fila, mensaje) {
     document.getElementById('contenidoModalCR').innerHTML = '<p>Actualizando…</p>';
-    ocupadoCR = true;
-    try {
-      const r = await apiCR('revisarContrarecibos');
-      if (r.ok) { revisionCR = r; pintarRevisionCR(); }
-    } catch (e) { /* se queda con lo anterior */ }
-    ocupadoCR = false;
+    await refrescarRevisionCR();
     pintarModalCR(mensaje);
   }
 
-  async function prepararCorreoCR(fila) {
-    if (ocupadoCR) return;
+  function gruposPendientesCR() {
+    const mapa = new Map();
+    (revisionCR ? revisionCR.items : []).filter((i) => i.estado === 'REEMITIDO_SIN_CORREO').forEach((i) => {
+      const k = i.empresa + '|' + (i.proveedorId || i.correoProveedor || i.proveedor);
+      if (!mapa.has(k)) mapa.set(k, { empresa: i.empresa, proveedor: i.proveedor, correo: i.correoProveedor, items: [] });
+      mapa.get(k).items.push(i);
+    });
+    return [...mapa.values()].sort((a, b) => (a.proveedor + a.empresa).localeCompare(b.proveedor + b.empresa));
+  }
+
+  let gruposCR = [];
+  let grupoAbiertoCR = null;   // grupo cuyo correo se está preparando
+  let previaCR = null;         // { huella, nota, filas, para } de la última vista previa del correo
+
+  function pintarGruposCR() {
+    gruposCR = gruposPendientesCR();
+    if (gruposCR.length === 0) return '';
+    return `<div class="paso-cr" style="margin-top:14px;">
+      <h4>📧 Correos pendientes por proveedor</h4>
+      <p style="margin:0 0 8px 0;font-size:0.85rem;color:#5b6b7a;">Ya tienen su contrarecibo corregido guardado. Se manda <b>un solo correo por proveedor y empresa</b>, con todos sus PDF corregidos. Tú ves el correo completo y confirmas antes de enviar.</p>
+      ${gruposCR.map((g, idx) => `<div class="fila-cr">
+        <div>
+          <div><span class="folio">${esc(g.proveedor)}</span> <span class="insignia-cr gris">${esc(g.empresa)}</span></div>
+          <div class="det">${g.items.length} contrarecibo${g.items.length === 1 ? '' : 's'} corregido${g.items.length === 1 ? '' : 's'} · ${esc(g.correo) || '<i>(sin correo)</i>'}</div>
+        </div>
+        <button class="btn-cr" onclick="abrirGrupoCR(${idx})">Preparar correo</button>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  function abrirGrupoCR(idx) {
+    grupoAbiertoCR = gruposCR[idx];
+    filaAbiertaCR = null; previaCR = null;
+    document.getElementById('fondoCR').style.display = 'block';
+    pintarModalGrupoCR();
+  }
+
+  function abrirGrupoPorFilaCR(fila) {
+    const idx = gruposCR.findIndex((g) => g.items.some((i) => i.fila === fila));
+    if (idx >= 0) abrirGrupoCR(idx);
+  }
+
+  function pintarModalGrupoCR(mensaje) {
+    const g = grupoAbiertoCR;
+    const cont = document.getElementById('contenidoModalCR');
+    if (!g) { cont.innerHTML = ''; return; }
+    cont.innerHTML = `<h3>Correo a ${esc(g.proveedor)} (${esc(g.empresa)})</h3>
+      ${mensaje || ''}
+      <table class="tabla-modal-cr">
+        <tr><td>Correo del proveedor</td><td><b>${esc(g.correo) || '(no encontrado)'}</b></td></tr>
+        <tr><td>Contrarecibos en este correo</td><td>${g.items.length}</td></tr>
+      </table>
+      <table class="tabla-modal-cr">
+        <tr><td><b>Contrarecibo</b></td><td><b>Factura</b></td><td><b>Decía</b></td><td><b>Correcto</b></td></tr>
+        ${g.items.map((i) => `<tr><td style="width:auto;color:inherit;">${esc(i.folioContrarecibo)}</td><td>${esc(i.folioFactura)}</td><td>${dineroCR(i.correccion.montoAnterior)}</td><td><b>${dineroCR(i.montoCorrecto)}</b></td></tr>`).join('')}
+      </table>
+      <div class="paso-cr">
+        <h4>Paso 3 — Ver el correo antes de enviarlo</h4>
+        <div class="solo-admin-cr">
+          <label style="font-size:0.85rem;font-weight:600;">Nota adicional (opcional). Se agrega al texto del correo tal como la escribas:</label>
+          <textarea class="input-cr" id="notaCR" rows="3" maxlength="800" oninput="notaCambioCR()" placeholder="Ejemplo: El contrarecibo CR-KARALV-2026-017, que era un duplicado de la misma factura, también queda sin efecto."></textarea>
+        </div>
+        <button class="btn-cr sec" onclick="prepararCorreoGrupoCR()">Ver el correo que se enviaría</button>
+        <div id="zonaCorreoCR"></div>
+      </div>`;
+  }
+
+  function notaActualCR() { const el = document.getElementById('notaCR'); return el ? el.value : ''; }
+
+  function notaCambioCR() {
+    if (previaCR && previaCR.nota !== notaActualCR()) {
+      const b = document.getElementById('btnEnviarCR'); if (b) b.disabled = true;
+      const av = document.getElementById('avisoNotaCR'); if (av) av.style.display = 'block';
+    } else {
+      const av = document.getElementById('avisoNotaCR'); if (av) av.style.display = 'none';
+      validarCorreoCR();
+    }
+  }
+
+  async function prepararCorreoGrupoCR() {
+    if (ocupadoCR || !grupoAbiertoCR) return;
     ocupadoCR = true;
     const zona = document.getElementById('zonaCorreoCR');
     zona.innerHTML = '<p>Preparando…</p>';
+    const filas = grupoAbiertoCR.items.map((i) => i.fila);
+    const nota = notaActualCR();
     try {
-      const r = await apiCR('previsualizarCorreoCorreccion', { fila });
-      if (!r.ok) { ocupadoCR = false; mostrarErrorModalCR(r.error || 'No se pudo preparar el correo.'); return; }
+      const r = await apiCR('previsualizarCorreoProveedor', { filas, nota });
+      if (!r.ok) { zona.innerHTML = `<div class="error-cr">${esc(r.error || 'No se pudo preparar el correo.')}</div>`; return; }
+      previaCR = { huella: r.huella, nota, filas, para: r.para };
       zona.innerHTML = `<table class="tabla-modal-cr">
-          <tr><td>De</td><td>${esc(r.de || ('La cuenta de correo de ' + r.remitenteEmpresa))}</td></tr>
+          <tr><td>De</td><td>${esc(r.de || ('La cuenta de correo de ' + r.empresa))}</td></tr>
           <tr><td>Para</td><td><b>${esc(r.para)}</b> (${esc(r.proveedor)})</td></tr>
           <tr><td>Asunto</td><td>${esc(r.asunto)}</td></tr>
-          <tr><td>Adjunto</td><td>${esc(r.adjunto)} · <a href="${esc(r.linkAdjunto)}" target="_blank" rel="noopener">Ver el PDF que va adjunto</a></td></tr>
+          <tr><td>Adjuntos (${r.adjuntos.length})</td><td>${r.adjuntos.map((a) => `${esc(a.filename)} · <a href="${esc(a.linkPdf)}" target="_blank" rel="noopener">ver</a>`).join('<br>')}</td></tr>
         </table>
         <div class="correo-previa">${esc(r.cuerpo)}</div>
-        <label style="font-size:0.85rem;font-weight:600;">Para confirmar, escribe el correo del destinatario tal como aparece arriba:</label>
-        <input class="input-cr" id="inputCorreoCR" type="email" autocomplete="off" placeholder="correo del proveedor" oninput="validarCorreoCR()">
-        <button class="btn-cr peligro" id="btnEnviarCR" disabled onclick="enviarCorreoCR('${esc(fila)}','${esc(r.para)}')">Enviar correo ahora</button>`;
+        <div class="aviso-cr" id="avisoNotaCR" style="display:none;">Cambiaste la nota. Vuelve a oprimir <b>Ver el correo que se enviaría</b> para ver el texto final.</div>
+        <div class="solo-admin-cr">
+          <label style="font-size:0.85rem;font-weight:600;">Para confirmar, escribe el correo del destinatario tal como aparece arriba:</label>
+          <input class="input-cr" id="inputCorreoCR" type="email" autocomplete="off" placeholder="correo del proveedor" oninput="validarCorreoCR()">
+          <button class="btn-cr peligro" id="btnEnviarCR" disabled onclick="enviarCorreoGrupoCR()">Enviar correo ahora</button>
+        </div>`;
     } catch (e) {
       zona.innerHTML = '<div class="error-cr">Error de conexión. Intenta de nuevo.</div>';
     } finally { ocupadoCR = false; }
   }
 
   function validarCorreoCR() {
-    const i = itemCR(filaAbiertaCR);
-    const esperado = i ? String(i.correoProveedor || '').trim().toLowerCase() : '';
-    const escrito = String(document.getElementById('inputCorreoCR').value || '').trim().toLowerCase();
-    document.getElementById('btnEnviarCR').disabled = !(esperado && escrito === esperado);
+    const input = document.getElementById('inputCorreoCR');
+    const btn = document.getElementById('btnEnviarCR');
+    if (!input || !btn || !previaCR) return;
+    const esperado = String(previaCR.para || '').trim().toLowerCase();
+    const escrito = String(input.value || '').trim().toLowerCase();
+    btn.disabled = !(esperado && escrito === esperado && previaCR.nota === notaActualCR());
   }
 
-  async function enviarCorreoCR(fila, para) {
-    if (ocupadoCR) return;
-    const i = itemCR(fila);
+  async function enviarCorreoGrupoCR() {
+    if (ocupadoCR || !previaCR || !grupoAbiertoCR) return;
+    if (previaCR.nota !== notaActualCR()) return;
+    const g = grupoAbiertoCR;
     const escrito = document.getElementById('inputCorreoCR').value.trim();
     const ok = confirm(
-      'Vas a ENVIAR un correo real a:\n\n' + para + '\n\n' +
-      'Contrarecibo corregido ' + i.folioContrarecibo + ' (' + i.proveedor + ')\n' +
-      'Monto correcto: ' + dineroCR(i.montoCorrecto) + '\n\n' +
+      'Vas a ENVIAR un correo real a:\n\n' + previaCR.para + '\n\n' +
+      g.proveedor + ' (' + g.empresa + ')\n' +
+      g.items.length + ' contrarecibo' + (g.items.length === 1 ? '' : 's') + ' corregido' + (g.items.length === 1 ? '' : 's') + ' adjunto' + (g.items.length === 1 ? '' : 's') + '\n\n' +
       'Esto no se puede deshacer. ¿Enviar?');
     if (!ok) return;
     ocupadoCR = true;
     document.getElementById('btnEnviarCR').disabled = true;
+    const previa = previaCR;
     try {
-      const r = await apiCR('enviarCorreoCorreccion', { fila, correoConfirmado: escrito });
+      const r = await apiCR('enviarCorreoProveedor', { filas: previa.filas, nota: previa.nota, huella: previa.huella, correoConfirmado: escrito });
+      if (!r.ok) { ocupadoCR = false; pintarModalGrupoCR(`<div class="error-cr">${esc(r.error || 'No se pudo enviar.')}</div>`); return; }
       ocupadoCR = false;
-      if (!r.ok) { mostrarErrorModalCR(r.error || 'No se pudo enviar.'); return; }
-      await refrescarYReabrirCR(fila, `<div class="aviso-cr" style="background:#e3f4e8;border-color:#b9dcc4;color:#1e6b3a;">✔ ${esc(r.mensaje || 'Correo enviado.')}${r.advertencia ? '<br><b>' + esc(r.advertencia) + '</b>' : ''}</div>`);
+      await refrescarRevisionCR();
+      grupoAbiertoCR = null; previaCR = null;
+      document.getElementById('contenidoModalCR').innerHTML = `<h3>✔ Correo enviado</h3>
+        <div class="aviso-cr" style="background:#e3f4e8;border-color:#b9dcc4;color:#1e6b3a;">${esc(r.mensaje || 'Correo enviado.')}${r.advertencia ? '<br><b>' + esc(r.advertencia) + '</b>' : ''}</div>
+        <button class="btn-cr sec" onclick="cerrarModalCR()">Cerrar</button>`;
     } catch (e) {
       ocupadoCR = false;
-      mostrarErrorModalCR('Error de conexión. NO repitas el envío todavía: usa "Volver a revisar" para ver si el correo quedó marcado como enviado o por confirmar.');
+      pintarModalGrupoCR('<div class="error-cr">Error de conexión. NO repitas el envío todavía: cierra esta ventana y usa "Volver a revisar" para ver si el correo quedó como enviado o por confirmar.</div>');
     }
+  }
+
+  async function refrescarRevisionCR() {
+    ocupadoCR = true;
+    try {
+      const r = await apiCR('revisarContrarecibos');
+      if (r.ok) { revisionCR = r; pintarRevisionCR(); }
+    } catch (e) { /* se queda con lo anterior */ }
+    ocupadoCR = false;
   }
 
   async function resolverCR(fila, resultado) {
