@@ -244,6 +244,15 @@
   body.rol-consultor #comprobantesBancariosContenedor { display: none !important; }
 
   /* Corrección de contrarecibos */
+  /* Listas agrupadas por proveedor (se despliegan al dar clic en el nombre) */
+  .grupo-prov { border: 1px solid var(--borde); border-radius: 10px; margin-bottom: 10px; background: #fff; overflow: hidden; }
+  .grupo-cab { width: 100%; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; background: var(--gris); border: none; cursor: pointer; text-align: left; font-family: inherit; font-size: 0.95rem; color: inherit; }
+  .grupo-cab:hover { background: #e6ebef; }
+  .grupo-cab .flecha { display: inline-block; transition: transform 0.15s; color: var(--azul); font-size: 0.8rem; }
+  .grupo-cab.abierto .flecha { transform: rotate(90deg); }
+  .grupo-nombre { font-weight: 700; color: var(--azul); }
+  .grupo-sub { margin-left: auto; font-size: 0.82rem; color: #5b6b7a; }
+  .grupo-cuerpo { padding: 10px 12px 4px 12px; }
   .caja-correccion { margin-top: 28px; padding: 18px; background: #fff; border: 1px solid var(--borde); border-radius: 10px; }
   .caja-correccion h2 { font-size: 1.1rem; color: var(--azul); margin: 0 0 4px 0; }
   .caja-correccion p { margin: 4px 0 12px 0; font-size: 0.9rem; color: #5b6b7a; }
@@ -377,7 +386,7 @@
     <button class="tab-btn" data-tab="pagos" onclick="cambiarTab('pagos')">Pagos <span class="tab-contador" id="contadorPagos"></span></button>
     <button class="tab-btn" data-tab="cuentas" onclick="cambiarTab('cuentas')">Estado de Cuenta</button>
     <button class="tab-btn solo-super" data-tab="usuarios" onclick="cambiarTab('usuarios')">Usuarios</button>
-    <button onclick="actualizarPestanaActiva(true)" title="Actualizar esta pestaña ahora" style="margin-left:auto; background:var(--azul); border:none; border-radius:8px; padding:9px 16px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#fff; white-space:nowrap;">🔄 Actualizar</button>
+    <button id="btnActualizarPanel" onclick="actualizarPestanaActiva(true)" title="Actualizar esta pestaña ahora" style="margin-left:auto; background:var(--azul); border:none; border-radius:8px; padding:9px 16px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#fff; white-space:nowrap;">🔄 Actualizar</button>
   </div>
 
   <div class="tab-pane" id="tab-pendientes">
@@ -589,7 +598,23 @@
 
   // Botón "🔄 Actualizar": refresca solo la pestaña que estés viendo ahorita.
   function actualizarPestanaActiva(esManual) {
-    if (CARGA_POR_PESTANA[pestanaActiva]) CARGA_POR_PESTANA[pestanaActiva]();
+    const btn = document.getElementById('btnActualizarPanel');
+    if (esManual && btn) { btn.disabled = true; btn.textContent = '⏳ Actualizando…'; }
+    const tareas = [];
+    if (CARGA_POR_PESTANA[pestanaActiva]) tareas.push(Promise.resolve().then(() => CARGA_POR_PESTANA[pestanaActiva]()));
+    // La revisión de contrarecibos es pesada (lee cada PDF), así que solo se repite
+    // cuando tú oprimes Actualizar, y solo si ya la habías corrido y no estás a la mitad de algo.
+    if (esManual && pestanaActiva === 'contrarecibos' && typeof revisionCR !== 'undefined' && revisionCR
+        && !ocupadoCR && document.getElementById('fondoCR').style.display !== 'block') {
+      tareas.push(refrescarRevisionCR());
+    }
+    if (esManual && btn) {
+      Promise.allSettled(tareas.concat([new Promise((r) => setTimeout(r, 700))])).then(() => {
+        const h = new Date().toLocaleTimeString('es-MX', { timeZone: 'America/Chihuahua', hour: '2-digit', minute: '2-digit' });
+        btn.disabled = false; btn.textContent = '✔ Actualizado ' + h;
+        setTimeout(() => { btn.textContent = '🔄 Actualizar'; }, 2500);
+      });
+    }
   }
 
   // Actualización automática: cada 45 segundos, sin que tengas que hacer nada,
@@ -1170,15 +1195,54 @@
       return;
     }
 
-    lista.innerHTML = contrarecibos.map(c => `
-      <div class="fila-contrarecibo">
-        <div>
-          <div class="folio-cr">${c.folioContrarecibo}</div>
-          <div class="datos-cr">${c.proveedor} · $${Number(c.monto).toLocaleString('es-MX', {minimumFractionDigits:2})}</div>
-        </div>
-        <a href="${c.urlContrarecibo}" target="_blank" rel="noopener">Ver PDF</a>
-      </div>
-    `).join('');
+    lista.innerHTML = agruparPorProveedor(contrarecibos).map((g) => {
+      const total = g.items.reduce((s, c) => s + Number(c.monto || 0), 0);
+      const n = g.items.length;
+      const sub = `${n} contrarecibo${n === 1 ? '' : 's'} · Total $${total.toLocaleString('es-MX', {minimumFractionDigits:2})}`;
+      const cuerpo = g.items.map(c => `
+        <div class="fila-contrarecibo">
+          <div>
+            <div class="folio-cr">${esc(c.folioContrarecibo)}</div>
+            <div class="datos-cr">$${Number(c.monto).toLocaleString('es-MX', {minimumFractionDigits:2})}</div>
+          </div>
+          <a href="${esc(c.urlContrarecibo)}" target="_blank" rel="noopener">Ver PDF</a>
+        </div>`).join('');
+      return htmlGrupoProveedor('gen', g, sub, cuerpo);
+    }).join('');
+  }
+
+  // ====== LISTAS AGRUPADAS POR PROVEEDOR ======
+  const gruposAbiertos = new Set();   // grupos desplegados: se conservan al refrescar la lista
+
+  function agruparPorProveedor(items) {
+    const mapa = new Map();
+    items.forEach((i) => {
+      const k = (i.empresa || '') + '|' + (i.proveedor || '');
+      if (!mapa.has(k)) mapa.set(k, { empresa: i.empresa, proveedor: i.proveedor, items: [] });
+      mapa.get(k).items.push(i);
+    });
+    return [...mapa.values()].sort((a, b) =>
+      String(a.proveedor).localeCompare(String(b.proveedor), 'es') || String(a.empresa).localeCompare(String(b.empresa), 'es'));
+  }
+
+  function htmlGrupoProveedor(tipo, g, subtitulo, cuerpo) {
+    const k = tipo + '|' + g.empresa + '|' + g.proveedor;
+    const ab = gruposAbiertos.has(k);
+    return `<div class="grupo-prov">
+      <button type="button" class="grupo-cab${ab ? ' abierto' : ''}" data-k="${esc(k)}" onclick="toggleGrupoProveedor(this)">
+        <span class="flecha">▶</span><span class="grupo-nombre">${esc(g.proveedor)}</span><span class="insignia-cr gris">${esc(g.empresa)}</span><span class="grupo-sub">${subtitulo}</span>
+      </button>
+      <div class="grupo-cuerpo" style="display:${ab ? 'block' : 'none'};">${cuerpo}</div>
+    </div>`;
+  }
+
+  function toggleGrupoProveedor(btn) {
+    const k = btn.getAttribute('data-k');
+    const cuerpo = btn.nextElementSibling;
+    const abrir = cuerpo.style.display === 'none';
+    cuerpo.style.display = abrir ? 'block' : 'none';
+    btn.classList.toggle('abierto', abrir);
+    if (abrir) gruposAbiertos.add(k); else gruposAbiertos.delete(k);
   }
 
   // ====== CORRECCIÓN DE CONTRARECIBOS (uno por uno, con confirmación) ======
@@ -1245,19 +1309,30 @@
     if (revisionCR.items.length === 0) {
       h += '<div class="aviso-cr" style="background:#e3f4e8;border-color:#b9dcc4;color:#1e6b3a;">✔ Todos los contrarecibos muestran el monto correcto.</div>';
     }
-    h += revisionCR.items.map((i) => {
-      const [clase, texto] = ETIQUETAS_CR[i.estado] || ['gris', i.estado];
-      const monto = i.estado === 'DESACTUALIZADO' || i.estado === 'NO_LEIBLE'
-        ? `El PDF dice <b>${i.montoEnPDF === null ? '(ilegible)' : dineroCR(i.montoEnPDF)}</b> · Debe decir <b>${dineroCR(i.montoCorrecto)}</b>`
-        : `Monto correcto: <b>${dineroCR(i.montoCorrecto)}</b>`;
-      return `<div class="fila-cr">
-        <div>
-          <div><span class="folio">${esc(i.folioContrarecibo)}</span><span class="insignia-cr ${clase}">${esc(texto)}</span></div>
-          <div class="det">${esc(i.proveedor)} (${esc(i.empresa)}) · Factura ${esc(i.folioFactura)}</div>
-          <div class="det">${monto}</div>
-        </div>
-        <button class="btn-cr sec" onclick="abrirModalCR('${esc(i.fila)}')">Abrir</button>
-      </div>`;
+    h += agruparPorProveedor(revisionCR.items).map((g) => {
+      const cuenta = {};
+      g.items.forEach((i) => { cuenta[i.estado] = (cuenta[i.estado] || 0) + 1; });
+      const partes = [];
+      if (cuenta.DESACTUALIZADO) partes.push(`${cuenta.DESACTUALIZADO} con monto equivocado`);
+      if (cuenta.NO_LEIBLE) partes.push(`${cuenta.NO_LEIBLE} no se pudo leer`);
+      if (cuenta.ENVIO_INTERRUMPIDO) partes.push(`${cuenta.ENVIO_INTERRUMPIDO} envío por confirmar`);
+      if (cuenta.REEMITIDO_SIN_CORREO) partes.push(`${cuenta.REEMITIDO_SIN_CORREO} corregido, falta enviar`);
+      if (cuenta.CORREGIDO_ENVIADO) partes.push(`${cuenta.CORREGIDO_ENVIADO} corregido y enviado`);
+      const cuerpo = g.items.map((i) => {
+        const [clase, texto] = ETIQUETAS_CR[i.estado] || ['gris', i.estado];
+        const monto = i.estado === 'DESACTUALIZADO' || i.estado === 'NO_LEIBLE'
+          ? `El PDF dice <b>${i.montoEnPDF === null ? '(ilegible)' : dineroCR(i.montoEnPDF)}</b> · Debe decir <b>${dineroCR(i.montoCorrecto)}</b>`
+          : `Monto correcto: <b>${dineroCR(i.montoCorrecto)}</b>`;
+        return `<div class="fila-cr">
+          <div>
+            <div><span class="folio">${esc(i.folioContrarecibo)}</span><span class="insignia-cr ${clase}">${esc(texto)}</span></div>
+            <div class="det">Factura ${esc(i.folioFactura)}</div>
+            <div class="det">${monto}</div>
+          </div>
+          <button class="btn-cr sec" onclick="abrirModalCR('${esc(i.fila)}')">Abrir</button>
+        </div>`;
+      }).join('');
+      return htmlGrupoProveedor('rev', g, partes.join(' · '), cuerpo);
     }).join('');
     caja.innerHTML = h;
   }
