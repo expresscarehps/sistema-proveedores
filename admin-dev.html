@@ -2361,6 +2361,8 @@
       return;
     }
 
+    const fmtEC = (n) => Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2 });
+    const sumaEC = (campo) => Math.round(lista.reduce((s, r) => s + (Number(r[campo]) || 0), 0) * 100) / 100;
     const totalGeneral = lista.reduce((s, r) => s + r.saldoPendiente, 0);
     resumenEl.innerHTML = lista.length + ' proveedor(es) con historial — saldo pendiente total: <b>$' +
       totalGeneral.toLocaleString('es-MX', { minimumFractionDigits: 2 }) + '</b>. Haz clic en un proveedor para ver el detalle factura por factura.';
@@ -2375,12 +2377,13 @@
           </td>
           <td><span class="badge-empresa ${r.empresa === 'KARALV' ? 'karalv' : 'ventura'}">${r.empresa}</span></td>
           <td>$${r.totalFacturado.toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
+          <td style="color:#8a4b00;">$${(r.totalAcreditado || 0).toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
           <td>$${r.totalPagado.toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
           <td style="font-weight:700;">$${r.saldoPendiente.toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
           <td>${r.vencido > 0 ? '<span style="color:var(--rojo); font-weight:700;">$' + r.vencido.toLocaleString('es-MX', {minimumFractionDigits:2}) + '</span>' : '—'}</td>
         </tr>
         <tr id="detalle-${claveCompuesta.replace(/[^a-zA-Z0-9]/g, '_')}" style="display:none;">
-          <td colspan="6" style="background:#f7f9fb; padding:0;">
+          <td colspan="7" style="background:#f7f9fb; padding:0;">
             <div id="contenidoDetalle-${claveCompuesta.replace(/[^a-zA-Z0-9]/g, '_')}" style="padding:14px 20px;"></div>
           </td>
         </tr>
@@ -2389,9 +2392,18 @@
 
     contenedor.innerHTML = `
       <table class="tabla-proveedores">
-        <thead><tr><th>Proveedor</th><th>Empresa</th><th>Total Facturado</th><th>Total Pagado</th><th>Saldo Pendiente</th><th>Vencido</th></tr></thead>
+        <thead><tr><th>Proveedor</th><th>Empresa</th><th>Total Facturado</th><th>Notas de Crédito</th><th>Total Pagado</th><th>Saldo Pendiente</th><th>Vencido</th></tr></thead>
         <tbody>${filas}</tbody>
+        <tfoot><tr style="font-weight:700; background:#eef2f5;">
+          <td colspan="2">TOTAL (${lista.length} proveedor${lista.length === 1 ? '' : 'es'})</td>
+          <td>$${fmtEC(sumaEC('totalFacturado'))}</td>
+          <td style="color:#8a4b00;">$${fmtEC(sumaEC('totalAcreditado'))}</td>
+          <td>$${fmtEC(sumaEC('totalPagado'))}</td>
+          <td>$${fmtEC(sumaEC('saldoPendiente'))}</td>
+          <td>${sumaEC('vencido') > 0 ? '<span style="color:var(--rojo);">$' + fmtEC(sumaEC('vencido')) + '</span>' : '—'}</td>
+        </tr></tfoot>
       </table>
+      <p class="subtitulo" style="margin-top:8px;">Saldo pendiente = Total facturado − Notas de crédito − Total pagado.</p>
     `;
   }
 
@@ -2442,6 +2454,8 @@
           <th style="text-align:left; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Emisión</th>
           <th style="text-align:left; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Vencimiento</th>
           <th style="text-align:right; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Monto</th>
+          <th style="text-align:right; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Notas de crédito</th>
+          <th style="text-align:right; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Pagado</th>
           <th style="text-align:right; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Saldo</th>
           <th style="text-align:left; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Estatus</th>
         </tr></thead>
@@ -2452,6 +2466,8 @@
               <td style="padding:6px; border-top:1px solid var(--borde);">${new Date(f.fechaEmision).toLocaleDateString('es-MX')}</td>
               <td style="padding:6px; border-top:1px solid var(--borde);">${new Date(f.fechaVencimiento).toLocaleDateString('es-MX')}</td>
               <td style="padding:6px; border-top:1px solid var(--borde); text-align:right;">$${Number(f.monto).toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
+              <td style="padding:6px; border-top:1px solid var(--borde); text-align:right; color:#8a4b00;">$${Number(f.totalAcreditado || 0).toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
+              <td style="padding:6px; border-top:1px solid var(--borde); text-align:right;">$${(Math.round((Number(f.monto) - Number(f.saldoPendiente) - Number(f.totalAcreditado || 0)) * 100) / 100).toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
               <td style="padding:6px; border-top:1px solid var(--borde); text-align:right; font-weight:700;">$${Number(f.saldoPendiente).toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
               <td style="padding:6px; border-top:1px solid var(--borde);">${badgeEstatus(f.estatus)}</td>
             </tr>
