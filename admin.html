@@ -600,19 +600,24 @@
   function actualizarPestanaActiva(esManual) {
     const btn = document.getElementById('btnActualizarPanel');
     if (esManual && btn) { btn.disabled = true; btn.textContent = '⏳ Actualizando…'; }
-    const tareas = [];
-    if (CARGA_POR_PESTANA[pestanaActiva]) tareas.push(Promise.resolve().then(() => CARGA_POR_PESTANA[pestanaActiva]()));
-    // La revisión de contrarecibos es pesada (lee cada PDF), así que solo se repite
-    // cuando tú oprimes Actualizar, y solo si ya la habías corrido y no estás a la mitad de algo.
+    // Al oprimir el botón se actualiza TODO el panel (contadores de cada pestaña, facturas, contrarecibos,
+    // vencimientos, pagos…), porque un movimiento en una pestaña cambia lo que se ve en las otras.
+    // En la actualización automática (cada 45 s) solo se refresca la pestaña que estás viendo.
+    const pestanas = esManual ? Object.keys(CARGA_POR_PESTANA) : [pestanaActiva];
+    const tareas = pestanas.map((p) => Promise.resolve().then(() => CARGA_POR_PESTANA[p] && CARGA_POR_PESTANA[p]()));
+    // La revisión de montos de contrarecibos es pesada (lee cada PDF): solo se repite al oprimir Actualizar,
+    // si ya la habías corrido y no estás a la mitad de algo.
     if (esManual && pestanaActiva === 'contrarecibos' && typeof revisionCR !== 'undefined' && revisionCR
         && !ocupadoCR && document.getElementById('fondoCR').style.display !== 'block') {
       tareas.push(refrescarRevisionCR());
     }
     if (esManual && btn) {
-      Promise.allSettled(tareas.concat([new Promise((r) => setTimeout(r, 700))])).then(() => {
+      Promise.allSettled(tareas.concat([new Promise((r) => setTimeout(r, 700))])).then((res) => {
+        const fallo = res.some((x) => x.status === 'rejected');
         const h = new Date().toLocaleTimeString('es-MX', { timeZone: 'America/Chihuahua', hour: '2-digit', minute: '2-digit' });
-        btn.disabled = false; btn.textContent = '✔ Actualizado ' + h;
-        setTimeout(() => { btn.textContent = '🔄 Actualizar'; }, 2500);
+        btn.disabled = false;
+        btn.textContent = fallo ? '⚠ No se pudo actualizar todo — revisa tu conexión y vuelve a intentar' : '✔ Actualizado ' + h;
+        setTimeout(() => { btn.textContent = '🔄 Actualizar'; }, fallo ? 6000 : 2500);
       });
     }
   }
