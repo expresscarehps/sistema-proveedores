@@ -210,6 +210,45 @@
   .msg-login { color: var(--rojo); font-size: 0.88rem; margin-top: 12px; display: none; text-align: center; line-height: 1.4; }
   #bloqueClave { margin-top: 26px; border-top: 1px solid var(--borde); padding-top: 14px; font-size: 0.85rem; color: #5b6b7a; }
   #bloqueClave summary { cursor: pointer; text-align: center; }
+
+  /* ── Pantalla de acceso con la imagen del cotizador de Express Care (rojo, azul y blanco) ── */
+  #pantallaClave {
+    position: fixed; inset: 0; z-index: 50; overflow-y: auto; background: #f2f2f2;
+    max-width: none; margin: 0; padding: 0; border-radius: 0; box-shadow: none;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  }
+  #pantallaClave .mira, #pantallaClave .liston { display: none; }
+  .login-hdr {
+    background: #ff3333; border-bottom: 4px solid #003399; padding: 14px 24px;
+    display: flex; align-items: center; gap: 18px;
+  }
+  .login-hdr img { height: 44px; width: auto; display: block; }
+  .login-hdr span { color: #fff; font-size: 0.95rem; font-weight: 600; opacity: 0.95; }
+  .login-card {
+    background: #fff; border-top: 4px solid #ff3333; border-radius: 10px;
+    max-width: 440px; margin: 56px auto 24px auto; padding: 36px 36px 28px 36px;
+    box-shadow: 0 4px 22px rgba(0,0,0,0.10);
+  }
+  .login-card h1 { text-align: center; color: #003399; font-size: 1.7rem; font-weight: 800; margin: 0 0 6px 0; }
+  .login-card .texto-login { text-align: center; font-size: 0.98rem; color: #5b5b5b; margin-bottom: 6px; }
+  .login-card .msg-login { text-align: center; }
+  #pantallaClave .btn-google {
+    margin-top: 24px; padding: 14px; border-radius: 8px; border: 2px solid #003399; color: #003399;
+    background: #fff; font-weight: 700; transition: background .15s, color .15s;
+  }
+  #pantallaClave .btn-google:hover:not(:disabled) { background: #003399; color: #fff; }
+  #pantallaClave #btnEntrar { background: #003399; }
+  .login-card #bloqueClave { margin-top: 24px; }
+  .login-card #bloqueClave summary { text-align: center; }
+  .login-aviso { text-align: center; margin-top: 22px; font-size: 0.8rem; color: #8a8a8a; line-height: 1.5; }
+  .login-empresas { max-width: 440px; margin: 0 auto 40px auto; padding: 0 12px; display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; }
+  .login-empresas span { font-size: 0.68rem; letter-spacing: 1.5px; text-transform: uppercase; color: #8a8a8a; font-weight: 700; }
+  .login-empresas img { height: 30px; width: auto; }
+  @media (max-width: 520px) {
+    .login-card { margin: 20px 12px; padding: 28px 22px 24px 22px; }
+    .login-hdr { padding: 10px 14px; }
+    .login-hdr img { height: 36px; }
+  }
   #barraUsuario {
     display: none; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap;
     font-size: 0.85rem; color: #5b6b7a; padding: 8px 0 2px 0;
@@ -312,41 +351,36 @@
 <body>
 
 <div id="pantallaClave">
-  <div class="mira tl"></div>
-  <div class="mira tr"></div>
-  <div class="mira bl"></div>
-  <div class="mira br"></div>
-  <div class="liston"></div>
-
-  <div class="membrete">
-    <div class="membrete-empresa hps">
-      <img class="logo-principal" src="high-precision-supply-logo.png" alt="High Precision Supply">
-      <div class="marcas-representadas">
-        <span class="etiqueta">Marcas:</span>
-        <img src="tennant-logo.png" alt="Tennant">
-        <img src="ipc-logo.png" alt="IPC by Tennant Company">
-      </div>
-    </div>
-    <div class="membrete-empresa ec">
-      <img class="logo-ec" src="express-care-logo.png" alt="Express Care by Valvoline">
-    </div>
+  <div class="login-hdr">
+    <img src="express-care-logo.png" alt="Express Care by Valvoline">
+    <span>Sistema de Proveedores</span>
   </div>
 
-  <h1>Portal Interno</h1>
-  <p class="texto-login">Entra con tu cuenta de Google de la empresa.</p>
-  <button id="btnGoogle" class="btn-google" onclick="entrarConGoogle()">
-    <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.9 2.3-8.5 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
-    Iniciar sesión con Google
-  </button>
-  <div class="msg-login" id="msgLogin"></div>
+  <div class="login-card">
+    <h1>Portal Interno</h1>
+    <p class="texto-login">Entra con tu cuenta de Google de la empresa.</p>
+    <button id="btnGoogle" class="btn-google" onclick="entrarConGoogle()">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.9 2.3-8.5 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+      Iniciar sesión con Google
+    </button>
+    <div class="msg-login" id="msgLogin"></div>
 
-  <details id="bloqueClave">
-    <summary>Entrar con clave (temporal)</summary>
-    <label style="font-weight:600; font-size:0.9rem; display:block; margin-top:12px;">Clave de acceso</label>
-    <input type="password" id="inputClave" placeholder="Clave">
-    <button id="btnEntrar" onclick="entrar()">Entrar</button>
-    <div class="error-clave" id="errorClave">Clave incorrecta.</div>
-  </details>
+    <details id="bloqueClave">
+      <summary>Entrar con clave (temporal)</summary>
+      <label style="font-weight:600; font-size:0.9rem; display:block; margin-top:12px;">Clave de acceso</label>
+      <input type="password" id="inputClave" placeholder="Clave">
+      <button id="btnEntrar" onclick="entrar()">Entrar</button>
+      <div class="error-clave" id="errorClave">Clave incorrecta.</div>
+    </details>
+    <div class="login-aviso">Acceso solo para personal autorizado.<br>Cada movimiento queda registrado con tu nombre.</div>
+  </div>
+
+  <div class="login-empresas">
+    <img src="high-precision-supply-logo.png" alt="High Precision Supply">
+    <span>Marcas</span>
+    <img src="tennant-logo.png" alt="Tennant">
+    <img src="ipc-logo.png" alt="IPC by Tennant Company">
+  </div>
 </div>
 
 <div class="contenedor" id="panel">
