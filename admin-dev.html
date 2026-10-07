@@ -237,9 +237,12 @@
   body.rol-consultor #btnEnviarCR,
   body.rol-consultor #inputCorreoCR,
   body.rol-consultor .campos-aprobar,
-  body.rol-consultor .check-preaprobacion,
   body.rol-consultor .check-pago,
-  body.rol-consultor #barraConfirmarPreaprobacion,
+  body.rol-consultor .check-seleccion-pago,
+  body.rol-consultor .monto-seleccion,
+  body.rol-consultor .barra-seleccion-ec,
+  body.rol-consultor .monto-abono,
+  body.rol-consultor .btn-quitar-pago,
   body.rol-consultor #barraConfirmarPago,
   body.rol-consultor #comprobantesBancariosContenedor { display: none !important; }
 
@@ -378,12 +381,12 @@
   <div class="tabs">
     <button class="tab-btn activo" data-tab="pendientes" onclick="cambiarTab('pendientes')">Proveedores <span class="tab-contador" id="contadorPendientes"></span></button>
     <button class="tab-btn" data-tab="facturas" onclick="cambiarTab('facturas')">Facturas <span class="tab-contador" id="contadorFacturas"></span></button>
-    <button class="tab-btn" data-tab="preaprobacion" onclick="cambiarTab('preaprobacion')">Preaprobación <span class="tab-contador" id="contadorPreaprobacion"></span></button>
     <button class="tab-btn" data-tab="notascredito" onclick="cambiarTab('notascredito')">Notas de Crédito <span class="tab-contador" id="contadorNotasCredito"></span></button>
     <button class="tab-btn" data-tab="vencimientos" onclick="cambiarTab('vencimientos')">Vencimientos</button>
     <button class="tab-btn" data-tab="contrarecibos" onclick="cambiarTab('contrarecibos')">Contrarecibos</button>
     <button class="tab-btn" data-tab="aprobados" onclick="cambiarTab('aprobados')">Aprobados</button>
     <button class="tab-btn" data-tab="pagos" onclick="cambiarTab('pagos')">Pagos <span class="tab-contador" id="contadorPagos"></span></button>
+    <button class="tab-btn" data-tab="pagosrealizados" onclick="cambiarTab('pagosrealizados')">Pagos realizados</button>
     <button class="tab-btn" data-tab="cuentas" onclick="cambiarTab('cuentas')">Estado de Cuenta</button>
     <button class="tab-btn solo-super" data-tab="usuarios" onclick="cambiarTab('usuarios')">Usuarios</button>
     <button class="tab-btn solo-super" data-tab="mantenimiento" onclick="cambiarTab('mantenimiento')">Mantenimiento</button>
@@ -411,18 +414,6 @@
     </div>
     <p class="subtitulo" style="margin-top:-8px;">Revisa la factura, el XML y la evidencia de entrega antes de validar. Al validar se genera el contrarecibo automáticamente.</p>
     <div id="listaFacturas" style="display:block; margin-top:16px;"></div>
-  </div>
-
-  <div class="tab-pane" id="tab-preaprobacion" style="display:none;">
-    <h1>Preaprobación de Pago</h1>
-    <p class="subtitulo" id="resumenPreaprobacion">Cargando...</p>
-    <p class="subtitulo" style="margin-top:-8px;">Estas facturas ya están validadas. Selecciona cuáles quedan autorizadas para pago — solo esas van a aparecer después en la pestaña "Pagos".</p>
-    <div id="listaPreaprobacion"></div>
-    <div id="barraConfirmarPreaprobacion" style="display:none; position:sticky; bottom:0; background:#fff; border-top:2px solid var(--borde); padding:16px 0; margin-top:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-      <div style="font-size:1.1rem;"><span id="cantidadSeleccionadaPreaprobacion">0</span> factura(s) seleccionada(s)</div>
-      <button id="btnConfirmarPreaprobacion" onclick="confirmarPreaprobacionSeleccionada()" style="width:auto; padding:12px 24px; background:var(--verde); color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:1rem;">Aprobar para pago</button>
-    </div>
-    <div id="resultadoConfirmacionPreaprobacion" style="margin-top:20px;"></div>
   </div>
 
   <div class="tab-pane" id="tab-notascredito" style="display:none;">
@@ -481,7 +472,7 @@
   </div>
 
   <div class="tab-pane" id="tab-pagos" style="display:none;">
-    <h1>Selección de Pagos</h1>
+    <h1>Pagos</h1>
     <p class="subtitulo" id="resumenPagos">Cargando...</p>
     <div id="listaPagos"></div>
     <div id="comprobantesBancariosContenedor" style="display:none; margin-top:20px; padding-top:16px; border-top:1px solid var(--borde);">
@@ -505,22 +496,18 @@
       </div>
       <div id="listaResumenesPago" style="display:none; margin-top:16px;"></div>
     </div>
+  </div>
 
-    <div style="border-top:1px solid var(--borde); margin-top:32px; padding-top:24px;">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
-        <div>
-          <h1 style="font-size:1.15rem;">Historial de abonos</h1>
-          <p class="subtitulo" id="resumenAbonos">Cargando...</p>
-        </div>
-        <button id="btnToggleAbonos" onclick="toggleAbonos()" class="btn-toggle">Ver lista ▾</button>
-      </div>
-      <div id="listaAbonos" style="display:none; margin-top:16px;"></div>
-    </div>
+  <div class="tab-pane" id="tab-pagosrealizados" style="display:none;">
+    <h1>Pagos realizados</h1>
+    <p class="subtitulo" id="resumenAbonos">Cargando...</p>
+    <div id="listaAbonos"></div>
   </div>
 
   <div class="tab-pane" id="tab-cuentas" style="display:none;">
     <h1>Estado de Cuenta por Proveedor</h1>
     <p class="subtitulo" id="resumenEstadoCuenta">Cargando...</p>
+    <div id="msgSeleccionEC" style="margin-bottom:10px;"></div>
     <div id="tablaEstadoCuenta"></div>
   </div>
 
@@ -580,19 +567,18 @@
   const CARGA_POR_PESTANA = {
     pendientes: () => cargarPendientes(),
     facturas: () => cargarFacturasPendientes(),
-    preaprobacion: () => {
-      // No interrumpas si ya hay casillas marcadas (no quieras perder tu selección a medio hacer)
-      if (document.querySelectorAll('.check-preaprobacion:checked').length === 0) cargarPreaprobacion();
-    },
     notascredito: () => cargarNotasCredito(),
     vencimientos: () => cargarVencimientos(),
     contrarecibos: () => cargarContrarecibos(),
     aprobados: () => cargarProveedoresAprobados(),
     pagos: () => {
-      // Mismo cuidado aquí: si ya seleccionaste facturas o subiste un comprobante, no lo recargues solo.
-      if (document.querySelectorAll('.check-pago:checked').length === 0) { cargarPagos(); }
+      // La lista se refresca conservando lo que ya marcaste / escribiste (estadoPagosUI).
+      if (!pagoEnProceso) cargarPagos();
       cargarResumenesPago();
-      cargarAbonos();
+    },
+    pagosrealizados: () => {
+      // Primero los resúmenes (de ahí salen los links al PDF) y luego los pagos.
+      Promise.resolve(cargarResumenesPago()).then(() => cargarAbonos());
     },
     cuentas: () => cargarEstadoCuenta()
   };
@@ -776,7 +762,7 @@
     sesionPanel: 'Inició sesión', accesoDenegado: 'Intento de acceso denegado',
     aprobarProveedor: 'Aprobó proveedor', rechazarProveedor: 'Rechazó proveedor',
     validarFactura: 'Validó factura (contrarecibo)', rechazarFactura: 'Rechazó factura',
-    aprobarParaPago: 'Preaprobó facturas para pago', confirmarPagos: 'Confirmó pagos',
+    aprobarParaPago: 'Preaprobó facturas para pago', guardarSeleccionPago: 'Seleccionó / quitó facturas para pago', confirmarPagos: 'Confirmó pagos',
     validarNotaCredito: 'Aplicó nota de crédito', rechazarNotaCredito: 'Rechazó nota de crédito',
     guardarUsuarioPanel: 'Agregó / actualizó usuario', eliminarUsuarioPanel: 'Eliminó usuario',
     configurarClaveCompartida: 'Cambió la clave compartida', corregirMontosHistoricos: 'Corrigió montos históricos'
@@ -936,7 +922,6 @@
     document.getElementById('panel').style.display = 'block';
     if (modoSesion === 'clave') aplicarRol({ rol: 'admin', nombre: 'Clave compartida', correo: '', via: 'clave' });
     cargarFacturasPendientes();
-    cargarPreaprobacion();
     cargarNotasCredito();
     cargarContrarecibos();
     cargarVencimientos();
@@ -1815,86 +1800,6 @@
 
   let facturasPorPagarCache = [];
 
-  // ====== PREAPROBACIÓN DE PAGO ======
-
-  async function cargarPreaprobacion() {
-    const resp = await fetch(URL_APPS_SCRIPT, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'listarFacturasParaPreaprobar', password: clave })
-    });
-    const resultado = await resp.json();
-    if (!resultado.ok) return;
-    document.getElementById('contadorPreaprobacion').textContent = resultado.facturas.length > 0 ? resultado.facturas.length : '';
-    pintarPreaprobacion(resultado.facturas);
-  }
-
-  function pintarPreaprobacion(facturas) {
-    const resumenEl = document.getElementById('resumenPreaprobacion');
-    const lista = document.getElementById('listaPreaprobacion');
-    const barra = document.getElementById('barraConfirmarPreaprobacion');
-    document.getElementById('resultadoConfirmacionPreaprobacion').innerHTML = '';
-
-    if (facturas.length === 0) {
-      resumenEl.textContent = 'No hay facturas validadas esperando preaprobación por ahora.';
-      lista.innerHTML = '<div class="vacio">No hay facturas validadas esperando preaprobación por ahora.</div>';
-      barra.style.display = 'none';
-      return;
-    }
-
-    resumenEl.textContent = facturas.length + ' factura(s) validada(s), esperando que decidas si quedan autorizadas para pago.';
-    barra.style.display = 'flex';
-
-    lista.innerHTML = facturas.map(f => `
-      <label class="fila-contrarecibo" style="cursor:pointer; align-items:center;">
-        <input type="checkbox" class="check-preaprobacion" data-fila="${f.fila}" onchange="actualizarContadorPreaprobacion()" style="width:18px; height:18px; margin-right:14px; flex-shrink:0;">
-        <div style="flex:1;">
-          <div class="folio-cr">${f.proveedor} <span class="badge-empresa ${f.empresa === 'KARALV' ? 'karalv' : 'ventura'}" style="margin-left:6px;">${f.empresa}</span>
-            ${f.estatus === 'Parcialmente Pagada' ? '<span style="color:#8a6900; font-size:0.72rem; font-weight:700; margin-left:6px;">PARCIAL</span>' : ''}
-          </div>
-          <div class="datos-cr">${f.folioContrarecibo || '(sin contrarecibo)'} · Programado: ${new Date(f.fechaPagoProgramada).toLocaleDateString('es-MX')} · Saldo: $${Number(f.saldoPendiente).toLocaleString('es-MX', {minimumFractionDigits:2})}</div>
-        </div>
-      </label>
-    `).join('');
-
-    actualizarContadorPreaprobacion();
-  }
-
-  function actualizarContadorPreaprobacion() {
-    const checks = document.querySelectorAll('.check-preaprobacion:checked');
-    document.getElementById('cantidadSeleccionadaPreaprobacion').textContent = checks.length;
-  }
-
-  async function confirmarPreaprobacionSeleccionada() {
-    const checks = document.querySelectorAll('.check-preaprobacion:checked');
-    if (checks.length === 0) {
-      alert('Selecciona al menos una factura antes de continuar.');
-      return;
-    }
-    const filas = Array.from(checks).map(c => c.dataset.fila);
-
-    const btn = document.getElementById('btnConfirmarPreaprobacion');
-    btn.disabled = true;
-    btn.textContent = 'Aprobando...';
-
-    const resp = await fetch(URL_APPS_SCRIPT, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'aprobarParaPago', password: clave, filas: filas })
-    });
-    const resultado = await resp.json();
-
-    btn.disabled = false;
-    btn.textContent = 'Aprobar para pago';
-
-    if (resultado.ok) {
-      document.getElementById('resultadoConfirmacionPreaprobacion').innerHTML =
-        '<div class="exito-contrarecibo">✔ ' + resultado.cantidad + ' factura(s) aprobada(s) para pago — ya están disponibles en la pestaña "Pagos".</div>';
-      cargarPreaprobacion();
-      cargarPagos();
-    } else {
-      alert(resultado.error || 'Ocurrió un error al aprobar para pago.');
-    }
-  }
-
   // ====== NOTAS DE CRÉDITO ======
 
   async function cargarNotasCredito() {
@@ -2013,8 +1918,7 @@
     if (resultado.ok) {
       cargarNotasCredito();
       cargarPagos();
-      cargarPreaprobacion();
-      cargarEstadoCuenta();
+      cargarEstadoCuenta(true);
     } else {
       alert(resultado.error || 'Ocurrió un error al aplicar la Nota de Crédito.');
     }
@@ -2046,49 +1950,81 @@
     pintarPagos(facturasPorPagarCache);
   }
 
+  // Lo que ya moviste en pantalla (casillas y montos) se conserva al refrescar la lista.
+  let estadoPagosUI = {};
+  let pagoEnProceso = false;
+
+  function capturarEstadoPagosUI() {
+    document.querySelectorAll('.check-pago').forEach(c => {
+      const input = document.querySelector('.monto-abono[data-fila="' + c.dataset.fila + '"]');
+      estadoPagosUI[c.dataset.fila] = { checked: c.checked, monto: input ? input.value : undefined, base: c.dataset.base };
+    });
+  }
+
   function pintarPagos(facturas) {
+    capturarEstadoPagosUI();
     const resumenEl = document.getElementById('resumenPagos');
     const lista = document.getElementById('listaPagos');
     const barra = document.getElementById('barraConfirmarPago');
-    const resultadoDiv = document.getElementById('resultadoConfirmacionPago');
-    resultadoDiv.innerHTML = '';
 
     if (facturas.length === 0) {
-      resumenEl.textContent = 'No hay facturas validadas pendientes de pago por ahora.';
-      lista.innerHTML = '<div class="vacio">No hay facturas validadas pendientes de pago por ahora.</div>';
+      resumenEl.textContent = 'No hay facturas seleccionadas para pago. Se escogen en la pestaña "Estado de Cuenta": abre un proveedor y marca las facturas que quieres pagar.';
+      lista.innerHTML = '<div class="vacio">No hay facturas seleccionadas para pago por ahora.</div>';
       barra.style.display = 'none';
+      actualizarComprobantesBancarios();
       return;
     }
 
-    resumenEl.textContent = 'Selecciona qué facturas pagar. Puedes editar el monto para hacer un abono parcial, o dejar el saldo completo para liquidarla.';
+    resumenEl.textContent = 'Estas son las facturas que seleccionaste en Estado de Cuenta. Deja marcadas las que vas a pagar ahorita, ajusta el monto si el pago es parcial y presiona "Confirmar pago". Con "Quitar" la regresas a Estado de Cuenta.';
     barra.style.display = 'flex';
 
-    lista.innerHTML = facturas.map(f => `
-      <label class="fila-contrarecibo" style="cursor:pointer; align-items:center;">
-        <input type="checkbox" class="check-pago" data-fila="${f.fila}" data-saldo="${f.saldoPendiente}" onchange="alSeleccionarPago(this)" style="width:18px; height:18px; margin-right:14px; flex-shrink:0;">
-        <div style="flex:1;">
-          <div class="folio-cr">${f.proveedor} <span class="badge-empresa ${f.empresa === 'KARALV' ? 'karalv' : 'ventura'}" style="margin-left:6px;">${f.empresa}</span>
-            ${f.estatus === 'Parcialmente Pagada' ? '<span style="color:#8a6900; font-size:0.72rem; font-weight:700; margin-left:6px;">PARCIAL</span>' : ''}
+    const grupos = agruparPorProveedor(facturas);
+    lista.innerHTML = grupos.map(g => {
+      const filas = g.items.map(f => {
+        const est = estadoPagosUI[f.fila];
+        const base = String(f.montoSeleccionado);
+        const usarEst = est && est.base === base;
+        const checked = usarEst ? est.checked : true;
+        const monto = usarEst && est.monto !== undefined && est.monto !== '' ? est.monto : f.montoSeleccionado;
+        return `
+        <div class="fila-contrarecibo" style="align-items:center; gap:10px; flex-wrap:wrap;">
+          <input type="checkbox" class="check-pago" data-fila="${esc(f.fila)}" data-saldo="${f.saldoPendiente}" data-base="${esc(base)}" data-k="${esc(g.empresa + '|' + g.proveedor)}" ${checked ? 'checked' : ''} onchange="alCambiarPago()" style="width:18px; height:18px; flex-shrink:0;">
+          <div style="flex:1; min-width:200px;">
+            <div class="folio-cr">Factura ${esc(f.folioFactura || f.folioFiscal)}
+              ${f.estatus === 'Parcialmente Pagada' ? '<span style="color:#8a6900; font-size:0.72rem; font-weight:700; margin-left:6px;">PARCIAL</span>' : ''}
+            </div>
+            <div class="datos-cr">${esc(f.folioContrarecibo || '(sin contrarecibo)')} · Vence: ${new Date(f.fechaPagoProgramada).toLocaleDateString('es-MX')} · Saldo actual: $${Number(f.saldoPendiente).toLocaleString('es-MX', {minimumFractionDigits:2})} · Seleccionado: $${Number(f.montoSeleccionado).toLocaleString('es-MX', {minimumFractionDigits:2})}</div>
           </div>
-          <div class="datos-cr">${f.folioContrarecibo || '(sin contrarecibo)'} · Programado: ${new Date(f.fechaPagoProgramada).toLocaleDateString('es-MX')} · Saldo: $${Number(f.saldoPendiente).toLocaleString('es-MX', {minimumFractionDigits:2})}</div>
-        </div>
-        <div onclick="event.preventDefault()">
-          <input type="number" class="monto-abono" data-fila="${f.fila}" data-saldo="${f.saldoPendiente}" value="${f.saldoPendiente}" min="0.01" max="${f.saldoPendiente}" step="0.01"
-            onchange="actualizarTotalPago()" disabled
+          <input type="number" class="monto-abono" data-fila="${esc(f.fila)}" data-saldo="${f.saldoPendiente}" value="${monto}" min="0.01" max="${f.saldoPendiente}" step="0.01"
+            onchange="actualizarTotalPago()" oninput="actualizarTotalPago()"
             style="width:130px; padding:8px 10px; border:1px solid var(--borde); border-radius:6px; font-weight:700; text-align:right; font-family:inherit;">
-        </div>
-      </label>
-    `).join('');
+          <button type="button" class="btn-quitar-pago" onclick="quitarDePagos('${esc(f.fila)}')" style="width:auto; padding:8px 12px; background:#fff; color:var(--rojo); border:1px solid var(--rojo); border-radius:6px; cursor:pointer; font-size:0.82rem; font-weight:600;">Quitar</button>
+        </div>`;
+      }).join('');
+      const sub = `<span class="sub-pago" data-k="${esc(g.empresa + '|' + g.proveedor)}"></span>`;
+      return htmlGrupoProveedor('pago', g, sub, filas);
+    }).join('');
 
     actualizarTotalPago();
   }
 
-  function alSeleccionarPago(checkbox) {
-    const fila = checkbox.dataset.fila;
-    const input = document.querySelector('.monto-abono[data-fila="' + fila + '"]');
-    input.disabled = !checkbox.checked;
-    if (checkbox.checked) input.value = checkbox.dataset.saldo; // por default, propone liquidar completo
+  function alCambiarPago() {
+    document.getElementById('resultadoConfirmacionPago').innerHTML = '';
     actualizarTotalPago();
+  }
+
+  async function quitarDePagos(fila) {
+    if (pagoEnProceso) return;
+    if (!confirm('¿Quitar esta factura de la selección de pagos? Regresa a Estado de Cuenta sin seleccionar.')) return;
+    const resp = await fetch(URL_APPS_SCRIPT, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'guardarSeleccionPago', password: clave, quitar: [fila] })
+    });
+    const r = await resp.json();
+    if (!r.ok) { alert(r.error || 'No se pudo quitar la factura.'); return; }
+    delete estadoPagosUI[fila];
+    cargarPagos();
+    cargarEstadoCuenta(true);
   }
 
   // Guarda los archivos ya elegidos por proveedor, para que no se pierdan si
@@ -2106,12 +2042,25 @@
       if (monto > saldo) { monto = saldo; input.value = saldo; } // no dejar capturar más del saldo
       total += monto;
     });
+    // Total y cantidad por proveedor, en el encabezado de cada grupo
+    document.querySelectorAll('.sub-pago').forEach(span => {
+      let n = 0, suma = 0, nTotal = 0;
+      document.querySelectorAll('.check-pago').forEach(c => {
+        if (c.dataset.k !== span.dataset.k) return;
+        nTotal++;
+        if (!c.checked) return;
+        const input = document.querySelector('.monto-abono[data-fila="' + c.dataset.fila + '"]');
+        const m = Number(input.value);
+        n++; suma += (isNaN(m) || m <= 0) ? 0 : m;
+      });
+      span.textContent = n + ' de ' + nTotal + ' a pagar · $' + suma.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+    });
     document.getElementById('totalSeleccionadoPago').textContent = '$' + total.toLocaleString('es-MX', { minimumFractionDigits: 2 });
     document.getElementById('cantidadSeleccionadaPago').textContent = checks.length;
     actualizarComprobantesBancarios();
   }
 
-  function actualizarComprobantesBancarios() {
+    function actualizarComprobantesBancarios() {
     const checks = document.querySelectorAll('.check-pago:checked');
     const contenedor = document.getElementById('comprobantesBancariosContenedor');
     const lista = document.getElementById('comprobantesBancariosLista');
@@ -2181,10 +2130,16 @@
     const total = pagos.reduce((suma, p) => suma + p.monto, 0);
     const totalTexto = '$' + total.toLocaleString('es-MX', { minimumFractionDigits: 2 });
 
+    if (pagos.some(p => !(p.monto > 0))) {
+      alert('Hay una factura marcada con monto vacío o en cero. Captura el monto o desmárcala.');
+      return;
+    }
+
     const confirmado = confirm('¿Confirmas el pago de ' + totalTexto + ' en ' + pagos.length + ' factura(s)? Esta acción no se puede deshacer desde aquí.');
     if (!confirmado) return;
 
     const btn = document.getElementById('btnConfirmarPago');
+    pagoEnProceso = true;
     btn.disabled = true;
     btn.textContent = '⏳ Procesando...';
     btn.style.background = '#9aa5ad';
@@ -2202,6 +2157,7 @@
     }), 600);
     const resultado = await resp.json();
 
+    pagoEnProceso = false;
     btn.disabled = false;
     btn.textContent = 'Confirmar pago';
     btn.style.background = '';
@@ -2209,6 +2165,10 @@
     if (!resultado.ok) {
       alert(resultado.error || 'Ocurrió un error al confirmar el pago.');
       return;
+    }
+    estadoPagosUI = {};
+    if (resultado.omitidas && resultado.omitidas.length > 0) {
+      alert('OJO: ' + resultado.omitidas.length + ' factura(s) ya no se pudieron pagar (cambió su saldo o su selección) y NO se pagaron. Revisa la lista.');
     }
 
     archivosComprobantesSeleccionados = {}; // limpio para la siguiente tanda de pagos
@@ -2241,11 +2201,13 @@
     cargarVencimientos();
     cargarResumenesPago();
     cargarAbonos();
+    cargarEstadoCuenta(true);
   }
 
   // ====== RESÚMENES DE PAGO GENERADOS (consulta permanente) ======
 
   let resumenesPagoVisible = false;
+  let resumenesUrlPorFolio = {};
 
   function toggleResumenesPago() {
     resumenesPagoVisible = !resumenesPagoVisible;
@@ -2260,6 +2222,8 @@
     });
     const resultado = await resp.json();
     if (!resultado.ok) return;
+    resumenesUrlPorFolio = {};
+    resultado.resumenes.forEach(r => { if (r.urlPDF) resumenesUrlPorFolio[r.folioResumen] = r.urlPDF; });
     pintarResumenesPago(resultado.resumenes);
   }
 
@@ -2288,15 +2252,7 @@
     `).join('');
   }
 
-  // ====== HISTORIAL DE ABONOS (consulta permanente) ======
-
-  let abonosVisible = false;
-
-  function toggleAbonos() {
-    abonosVisible = !abonosVisible;
-    document.getElementById('listaAbonos').style.display = abonosVisible ? 'block' : 'none';
-    document.getElementById('btnToggleAbonos').textContent = abonosVisible ? 'Ocultar lista ▴' : 'Ver lista ▾';
-  }
+  // ====== PAGOS REALIZADOS (por proveedor) ======
 
   async function cargarAbonos() {
     const resp = await fetch(URL_APPS_SCRIPT, {
@@ -2310,44 +2266,55 @@
 
   function pintarAbonos(abonos) {
     const lista = document.getElementById('listaAbonos');
-    const cantidad = abonos.length;
-    document.getElementById('resumenAbonos').textContent =
-      cantidad === 0 ? 'Todavía no se ha registrado ningún abono.' :
-      cantidad === 1 ? '1 abono registrado.' :
-      cantidad + ' abonos registrados.';
-    document.getElementById('btnToggleAbonos').style.display = cantidad === 0 ? 'none' : 'inline-block';
+    const resumenEl = document.getElementById('resumenAbonos');
+    const dinero = (n) => '$' + Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2 });
 
     if (abonos.length === 0) {
-      lista.innerHTML = '<div class="vacio">Todavía no se ha registrado ningún abono.</div>';
+      resumenEl.textContent = 'Todavía no se ha registrado ningún pago.';
+      lista.innerHTML = '<div class="vacio">Todavía no se ha registrado ningún pago.</div>';
       return;
     }
 
-    lista.innerHTML = abonos.map(a => `
-      <div class="fila-contrarecibo">
-        <div>
-          <div class="folio-cr">${a.proveedor} <span class="badge-empresa ${a.empresa === 'KARALV' ? 'karalv' : 'ventura'}" style="margin-left:6px;">${a.empresa}</span>
-            ${a.estatusComplemento === 'Recibido'
-              ? '<span style="background:#e7f6ec; color:#1e6b3a; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; margin-left:6px;">Complemento ✔</span>'
-              : `<span style="background:#fdecea; color:#a3272c; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; margin-left:6px;">Complemento pendiente (límite ${new Date(a.fechaLimiteComplemento).toLocaleDateString('es-MX')})</span>`}
+    const grupos = agruparPorProveedor(abonos);
+    const granTotal = abonos.reduce((s, a) => s + Number(a.montoAbonado || 0), 0);
+    resumenEl.textContent = abonos.length + ' pago(s) a ' + grupos.length + ' proveedor(es) — total pagado ' + dinero(granTotal) + '. Haz clic en un proveedor para ver sus pagos.';
+
+    lista.innerHTML = grupos.map(g => {
+      const total = g.items.reduce((s, a) => s + Number(a.montoAbonado || 0), 0);
+      const pendientes = g.items.filter(a => a.estatusComplemento !== 'Recibido').length;
+      const sub = g.items.length + ' pago(s) · ' + dinero(total) +
+        (pendientes > 0 ? ' · <span style="color:#a3272c; font-weight:700;">' + pendientes + ' complemento(s) pendiente(s)</span>' : '');
+      const filas = g.items.map(a => `
+        <div class="fila-contrarecibo">
+          <div>
+            <div class="folio-cr">Factura ${esc(a.referenciaFactura)}
+              ${a.estatusComplemento === 'Recibido'
+                ? '<span style="background:#e7f6ec; color:#1e6b3a; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; margin-left:6px;">Complemento ✔</span>'
+                : `<span style="background:#fdecea; color:#a3272c; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; margin-left:6px;">Complemento pendiente (límite ${new Date(a.fechaLimiteComplemento).toLocaleDateString('es-MX')})</span>`}
+            </div>
+            <div class="datos-cr">${new Date(a.fecha).toLocaleDateString('es-MX')} · Resumen ${esc(a.folioResumenPago)}${resumenesUrlPorFolio[a.folioResumenPago] ? ` · <a href="${esc(resumenesUrlPorFolio[a.folioResumenPago])}" target="_blank" rel="noopener">Ver PDF</a>` : ''} · Saldo después: ${dinero(a.saldoDespues)}</div>
           </div>
-          <div class="datos-cr">Factura ${a.referenciaFactura} · ${new Date(a.fecha).toLocaleDateString('es-MX')} · Saldo después: $${Number(a.saldoDespues).toLocaleString('es-MX', {minimumFractionDigits:2})}</div>
-        </div>
-        <div style="font-weight:700; color:var(--verde);">+$${Number(a.montoAbonado).toLocaleString('es-MX', {minimumFractionDigits:2})}</div>
-      </div>
-    `).join('');
+          <div style="font-weight:700; color:var(--verde);">+${dinero(a.montoAbonado)}</div>
+        </div>`).join('');
+      return htmlGrupoProveedor('pr', g, sub, filas);
+    }).join('');
   }
 
-  // ====== ESTADO DE CUENTA POR PROVEEDOR ======
+    // ====== ESTADO DE CUENTA POR PROVEEDOR ======
 
   let detalleAbiertoClave = null; // "proveedor|empresa" del que está desplegado, o null
+  let selECSucia = false;         // hay casillas/montos cambiados sin guardar en el detalle abierto
 
-  async function cargarEstadoCuenta() {
+  async function cargarEstadoCuenta(forzar) {
+    // Si estás a medio escoger facturas, no se repinta (perderías lo marcado).
+    if (selECSucia && !forzar) return;
     const resp = await fetch(URL_APPS_SCRIPT, {
       method: 'POST',
       body: JSON.stringify({ action: 'obtenerEstadoCuenta', password: clave })
     });
     const resultado = await resp.json();
     if (!resultado.ok) return;
+    selECSucia = false;
     pintarEstadoCuenta(resultado.estadoCuenta);
   }
 
@@ -2374,6 +2341,7 @@
           <td>
             <div class="nombre-prov">${r.proveedor}</div>
             <div class="rfc-prov">${r.cantidadFacturas} factura(s)</div>
+            ${r.cantidadSeleccionadas > 0 ? '<div class="rfc-prov" style="color:var(--verde); font-weight:700;">✔ ' + r.cantidadSeleccionadas + ' en Pagos · $' + fmtEC(r.montoSeleccionado) + '</div>' : ''}
           </td>
           <td><span class="badge-empresa ${r.empresa === 'KARALV' ? 'karalv' : 'ventura'}">${r.empresa}</span></td>
           <td>$${r.totalFacturado.toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
@@ -2405,19 +2373,33 @@
       </table>
       <p class="subtitulo" style="margin-top:8px;">Saldo pendiente = Total facturado − Notas de crédito − Total pagado.</p>
     `;
+
+    // Si había un proveedor desplegado, se vuelve a abrir con datos frescos.
+    if (detalleAbiertoClave) {
+      const i = detalleAbiertoClave.lastIndexOf('|');
+      const prov = detalleAbiertoClave.slice(0, i), emp = detalleAbiertoClave.slice(i + 1);
+      const existe = lista.some(r => r.proveedor === prov && r.empresa === emp);
+      const idSeguro = detalleAbiertoClave.replace(/[^a-zA-Z0-9]/g, '_');
+      const fila = document.getElementById('detalle-' + idSeguro);
+      if (existe && fila) { fila.style.display = 'table-row'; cargarDetalleEC(detalleAbiertoClave, prov, emp); }
+      else detalleAbiertoClave = null;
+    }
   }
 
-  async function toggleDetalleProveedor(claveCompuesta, proveedor, empresa) {
+async function toggleDetalleProveedor(claveCompuesta, proveedor, empresa) {
     const idSeguro = claveCompuesta.replace(/[^a-zA-Z0-9]/g, '_');
     const filaDetalle = document.getElementById('detalle-' + idSeguro);
-    const contenido = document.getElementById('contenidoDetalle-' + idSeguro);
 
     // Si ya estaba abierto este mismo proveedor, ciérralo (comportamiento acordeón).
     if (detalleAbiertoClave === claveCompuesta) {
+      if (selECSucia && !confirm('Tienes cambios sin guardar en la selección de pagos. ¿Cerrar y descartarlos?')) return;
       filaDetalle.style.display = 'none';
       detalleAbiertoClave = null;
+      selECSucia = false;
       return;
     }
+    if (selECSucia && !confirm('Tienes cambios sin guardar en la selección de pagos. ¿Cambiar de proveedor y descartarlos?')) return;
+    selECSucia = false;
 
     // Cierra cualquier otro detalle que estuviera abierto.
     if (detalleAbiertoClave) {
@@ -2428,53 +2410,160 @@
 
     detalleAbiertoClave = claveCompuesta;
     filaDetalle.style.display = 'table-row';
-    contenido.innerHTML = '<div class="vacio">Cargando detalle...</div>';
+    cargarDetalleEC(claveCompuesta, proveedor, empresa);
+  }
+
+  async function cargarDetalleEC(claveCompuesta, proveedor, empresa) {
+    const idSeguro = claveCompuesta.replace(/[^a-zA-Z0-9]/g, '_');
+    const contenido = document.getElementById('contenidoDetalle-' + idSeguro);
+    if (!contenido) return;
+    if (!contenido.innerHTML.trim()) contenido.innerHTML = '<div class="vacio">Cargando detalle...</div>';
 
     const resp = await fetch(URL_APPS_SCRIPT, {
       method: 'POST',
       body: JSON.stringify({ action: 'obtenerDetalleFacturasProveedor', password: clave, proveedor: proveedor, empresa: empresa })
     });
     const resultado = await resp.json();
+    if (detalleAbiertoClave !== claveCompuesta) return; // cambió de proveedor mientras cargaba
 
     if (!resultado.ok || resultado.detalle.length === 0) {
       contenido.innerHTML = '<div class="vacio">No se encontró detalle para este proveedor.</div>';
       return;
     }
 
+    const dinero = (n) => '$' + Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2 });
     const badgeEstatus = function (estatus) {
       if (estatus === 'Pagada') return '<span style="background:#e7f6ec; color:#1e6b3a; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700;">Pagada</span>';
       if (estatus === 'Parcialmente Pagada') return '<span style="background:#fff4d6; color:#8a6900; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700;">Parcial</span>';
       return '<span style="background:#e6f0f5; color:#0b5d85; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700;">Validada</span>';
     };
+    const th = (t, der) => `<th style="text-align:${der ? 'right' : 'left'}; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">${t}</th>`;
+    const td = (t, extra) => `<td style="padding:6px; border-top:1px solid var(--borde); ${extra || ''}">${t}</td>`;
+
+    const filas = resultado.detalle.map(f => {
+      const saldo = Number(f.saldoPendiente);
+      const pagable = (f.estatus === 'Validada' || f.estatus === 'Parcialmente Pagada') && saldo > 0;
+      const sel = f.seleccionadaParaPago === true;
+      const montoInicial = sel ? f.montoSeleccionado : saldo;
+      const celdaPago = !pagable ? '—' : `
+        <input type="number" class="monto-seleccion" data-fila="${esc(f.fila)}" value="${montoInicial}" min="0.01" max="${saldo}" step="0.01" ${sel ? '' : 'disabled'}
+          oninput="alCambiarSeleccionEC(this)" style="width:120px; padding:6px 8px; border:1px solid var(--borde); border-radius:6px; font-weight:700; text-align:right; font-family:inherit;">
+        ${sel ? '<div style="font-size:0.72rem; color:var(--verde); font-weight:700; margin-top:2px;">✔ En Pagos: ' + dinero(f.montoSeleccionado) + '</div>' : ''}`;
+      return `
+        <tr class="fila-sel-ec" data-fila="${esc(f.fila)}" data-saldo="${saldo}" data-sel="${sel ? '1' : '0'}" data-montosel="${sel ? f.montoSeleccionado : ''}">
+          <td style="padding:6px; border-top:1px solid var(--borde);">${pagable ? `<input type="checkbox" class="check-seleccion-pago" data-fila="${esc(f.fila)}" ${sel ? 'checked' : ''} onchange="alCambiarSeleccionEC(this)" style="width:18px; height:18px;">` : ''}</td>
+          ${td(esc(f.folioFactura))}
+          ${td(new Date(f.fechaEmision).toLocaleDateString('es-MX'))}
+          ${td(new Date(f.fechaVencimiento).toLocaleDateString('es-MX'))}
+          ${td(dinero(f.monto), 'text-align:right;')}
+          ${td(dinero(f.totalAcreditado || 0), 'text-align:right; color:#8a4b00;')}
+          ${td(dinero(Math.round((Number(f.monto) - saldo - Number(f.totalAcreditado || 0)) * 100) / 100), 'text-align:right;')}
+          ${td(dinero(saldo), 'text-align:right; font-weight:700;')}
+          ${td(celdaPago, 'text-align:right; white-space:nowrap;')}
+          ${td(badgeEstatus(f.estatus))}
+        </tr>`;
+    }).join('');
+
+    const hayPagables = resultado.detalle.some(f => (f.estatus === 'Validada' || f.estatus === 'Parcialmente Pagada') && Number(f.saldoPendiente) > 0);
 
     contenido.innerHTML = `
-      <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+      <div class="contenido-detalle-ec" data-prov="${esc(proveedor)}" data-emp="${esc(empresa)}">
+      <div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
         <thead><tr>
-          <th style="text-align:left; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Folio</th>
-          <th style="text-align:left; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Emisión</th>
-          <th style="text-align:left; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Vencimiento</th>
-          <th style="text-align:right; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Monto</th>
-          <th style="text-align:right; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Notas de crédito</th>
-          <th style="text-align:right; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Pagado</th>
-          <th style="text-align:right; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Saldo</th>
-          <th style="text-align:left; padding:6px; color:#8b98a5; font-size:11px; text-transform:uppercase;">Estatus</th>
+          <th style="width:30px;"></th>
+          ${th('Folio')}${th('Emisión')}${th('Vencimiento')}${th('Monto', true)}${th('Notas de crédito', true)}${th('Pagado', true)}${th('Saldo', true)}${th('Monto a pagar', true)}${th('Estatus')}
         </tr></thead>
-        <tbody>
-          ${resultado.detalle.map(f => `
-            <tr>
-              <td style="padding:6px; border-top:1px solid var(--borde);">${f.folioFactura}</td>
-              <td style="padding:6px; border-top:1px solid var(--borde);">${new Date(f.fechaEmision).toLocaleDateString('es-MX')}</td>
-              <td style="padding:6px; border-top:1px solid var(--borde);">${new Date(f.fechaVencimiento).toLocaleDateString('es-MX')}</td>
-              <td style="padding:6px; border-top:1px solid var(--borde); text-align:right;">$${Number(f.monto).toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
-              <td style="padding:6px; border-top:1px solid var(--borde); text-align:right; color:#8a4b00;">$${Number(f.totalAcreditado || 0).toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
-              <td style="padding:6px; border-top:1px solid var(--borde); text-align:right;">$${(Math.round((Number(f.monto) - Number(f.saldoPendiente) - Number(f.totalAcreditado || 0)) * 100) / 100).toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
-              <td style="padding:6px; border-top:1px solid var(--borde); text-align:right; font-weight:700;">$${Number(f.saldoPendiente).toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
-              <td style="padding:6px; border-top:1px solid var(--borde);">${badgeEstatus(f.estatus)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
+        <tbody>${filas}</tbody>
+      </table></div>
+      ${hayPagables ? `
+      <div class="barra-seleccion-ec" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:12px; padding-top:12px; border-top:1px solid var(--borde);">
+        <div>Marcadas para pago: <b id="cantSelEC">0</b> factura(s) · Total a pagar: <b id="totalSelEC" style="color:var(--azul);">$0.00</b>
+          <span id="avisoSelEC" style="margin-left:8px; font-size:0.82rem; color:#8a6900;"></span></div>
+        <button type="button" id="btnGuardarSelEC" onclick="guardarSeleccionEC(this)" style="width:auto; padding:10px 20px; background:var(--verde); color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer;">Guardar selección para pago</button>
+      </div>
+      <p class="subtitulo barra-seleccion-ec" style="margin-top:6px;">Cada factura sale con su saldo actual (ya descontadas las notas de crédito). Para un pago parcial, baja el monto. Lo que guardes aparece en la pestaña "Pagos".</p>` : '<p class="subtitulo" style="margin-top:10px;">Este proveedor no tiene facturas con saldo pendiente.</p>'}
+      </div>`;
+    selECSucia = false;
+    recalcularSeleccionEC();
+  }
+
+  function recalcularSeleccionEC() {
+    const cont = document.querySelector('.contenido-detalle-ec');
+    if (!cont) return;
+    let n = 0, total = 0, cambios = 0;
+    cont.querySelectorAll('.fila-sel-ec').forEach(tr => {
+      const chk = tr.querySelector('.check-seleccion-pago');
+      if (!chk) return;
+      const inp = tr.querySelector('.monto-seleccion');
+      const m = Number(inp.value);
+      const eraSel = tr.dataset.sel === '1';
+      if (chk.checked) {
+        n++; total += (isNaN(m) || m <= 0) ? 0 : m;
+        if (!eraSel || Math.abs(m - Number(tr.dataset.montosel)) > 0.004) cambios++;
+      } else if (eraSel) cambios++;
+    });
+    const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    set('cantSelEC', n);
+    set('totalSelEC', '$' + total.toLocaleString('es-MX', { minimumFractionDigits: 2 }));
+    set('avisoSelEC', cambios > 0 ? '● Cambios sin guardar' : '');
+    selECSucia = cambios > 0;
+  }
+
+  function alCambiarSeleccionEC(el) {
+    const tr = el.closest('tr');
+    const chk = tr.querySelector('.check-seleccion-pago');
+    const inp = tr.querySelector('.monto-seleccion');
+    const saldo = Number(tr.dataset.saldo);
+    inp.disabled = !chk.checked;
+    if (el === chk && chk.checked) inp.value = (tr.dataset.sel === '1' && tr.dataset.montosel) ? tr.dataset.montosel : saldo;
+    if (el === inp) {
+      const v = Number(inp.value);
+      if (!isNaN(v) && v > saldo) inp.value = saldo; // nunca más que el saldo actual
+    }
+    recalcularSeleccionEC();
+  }
+
+  async function guardarSeleccionEC(btn) {
+    const cont = btn.closest('.contenido-detalle-ec');
+    const proveedor = cont.dataset.prov, empresa = cont.dataset.emp;
+    const selecciones = [], quitar = [];
+    let invalido = false;
+    cont.querySelectorAll('.fila-sel-ec').forEach(tr => {
+      const chk = tr.querySelector('.check-seleccion-pago');
+      if (!chk) return;
+      if (chk.checked) {
+        const m = Math.round(Number(tr.querySelector('.monto-seleccion').value) * 100) / 100;
+        if (isNaN(m) || m <= 0 || m > Number(tr.dataset.saldo) + 0.004) invalido = true;
+        selecciones.push({ fila: tr.dataset.fila, monto: m });
+      } else if (tr.dataset.sel === '1') quitar.push(tr.dataset.fila);
+    });
+    if (invalido) { alert('Hay una factura marcada con un monto vacío, en cero o mayor a su saldo. Corrígelo antes de guardar.'); return; }
+    if (selecciones.length === 0 && quitar.length === 0) { alert('No hay nada que guardar: marca al menos una factura.'); return; }
+
+    btn.disabled = true; btn.textContent = '⏳ Guardando...';
+    let r;
+    try {
+      const resp = await fetch(URL_APPS_SCRIPT, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'guardarSeleccionPago', password: clave, proveedor, empresa, selecciones, quitar })
+      });
+      r = await resp.json();
+    } catch (e) { r = { ok: false, error: 'Error de conexión. Intenta de nuevo.' }; }
+    btn.disabled = false; btn.textContent = 'Guardar selección para pago';
+
+    const msg = document.getElementById('msgSeleccionEC');
+    if (!r.ok) {
+      alert(r.error || 'No se pudo guardar la selección.');
+      return;
+    }
+    let texto = '✔ Selección guardada: ' + r.seleccionadas + ' factura(s) para pago' + (r.quitadas ? ', ' + r.quitadas + ' quitada(s)' : '') + '. Ya aparecen en la pestaña "Pagos".';
+    if (r.rechazadas && r.rechazadas.length > 0) {
+      texto += ' ⚠ ' + r.rechazadas.length + ' no se pudo(ieron) guardar: ' + r.rechazadas.map(x => x.motivo).join(' | ');
+    }
+    msg.innerHTML = '<div class="exito-contrarecibo">' + esc(texto) + ' <a href="#" onclick="cambiarTab(\'pagos\'); return false;">Ir a Pagos →</a></div>';
+    selECSucia = false;
+    cargarPagos();
+    cargarEstadoCuenta(true);
   }
 
   // ══════════════════════════════════════════════════════════════
