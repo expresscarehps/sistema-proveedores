@@ -94,6 +94,10 @@
   .estatus-badge.pendiente { background: #fff4d9; color: #8a6900; }
   .estatus-badge.validada { background: #e7f6ec; color: #1e6b3a; }
   .estatus-badge.rechazada { background: #fbe9e9; color: #a3272c; }
+  .estatus-badge.cancelada { background: #e4e8ec; color: #4a5866; }
+  .nota-cancelacion { margin-top: 6px; font-size: 0.78rem; color: #5b6b7a; }
+  .nota-cancelacion.rechazo { color: var(--rojo); }
+  .aviso-sat { background: #eef6fb; border: 1px solid #c9e1ef; border-radius: 8px; padding: 10px 12px; font-size: 0.82rem; color: #2c4a5e; margin-bottom: 12px; }
   .alerta-mini { color: var(--rojo); font-size: 0.78rem; margin-top: 4px; }
 
   .tarjeta-complemento {
@@ -175,6 +179,39 @@
       <div id="mensajeNC" class="mensaje"></div>
     </div>
 
+    <div class="seccion-historial">
+      <h2>Cancelar una factura</h2>
+      <p class="ayuda-archivo" style="margin-top:-6px; margin-bottom:12px;">Si cancelaste una factura ante el SAT, sube aquí el acuse de cancelación para que dejemos de considerarla. Una factura que ya tiene pagos no se cancela por aquí: se corrige con una Nota de Crédito.</p>
+      <div class="aviso-sat">Primero cancela la factura en el SAT. Aquí solo subes el <b>acuse de cancelación</b> que el SAT te entrega (PDF y XML). El sistema lee el XML y verifica que corresponda a la factura que elijas.</div>
+      <form id="formCancelacion">
+        <label>Factura que cancelaste *</label>
+        <select id="cancelFactura" required>
+          <option value="">Selecciona...</option>
+        </select>
+        <div class="ayuda-archivo" id="ayudaCancelFactura"></div>
+
+        <label>Motivo de cancelación del SAT *</label>
+        <select id="cancelMotivo" required>
+          <option value="">Selecciona...</option>
+          <option value="01">01 — Comprobante emitido con errores con relación (la sustituye otra factura)</option>
+          <option value="02">02 — Comprobante emitido con errores sin relación</option>
+          <option value="03">03 — No se llevó a cabo la operación</option>
+          <option value="04">04 — Operación nominativa relacionada en una factura global</option>
+        </select>
+        <div class="ayuda-archivo" id="ayudaCancelMotivo" style="display:none;">Con el motivo 01, tu factura nueva debe traer relacionado (tipo de relación 04) el folio fiscal de esta factura, como lo marca el SAT.</div>
+
+        <label>Acuse de cancelación (PDF) *</label>
+        <input type="file" id="cancelPdf" accept="application/pdf" required>
+
+        <label>Acuse de cancelación (XML) *</label>
+        <input type="file" id="cancelXml" accept=".xml,text/xml" required>
+        <div class="ayuda-archivo">Se necesitan los dos archivos. El sistema lee el folio fiscal, el RFC y el estatus directo del XML.</div>
+
+        <button type="submit" id="btnEnviarCancelacion">Enviar cancelación</button>
+      </form>
+      <div id="mensajeCancelacion" class="mensaje"></div>
+    </div>
+
     <div id="seccionComplementos" style="display:none;" class="seccion-historial">
       <h2>Complementos de Pago pendientes</h2>
       <div id="listaComplementos"></div>
@@ -202,6 +239,7 @@
   const token = params.get('token');
 
   let empresaProveedor = '';
+  let facturasProveedor = [];
 
   async function iniciar() {
     if (!token) {
@@ -406,7 +444,9 @@
       });
       const resultado = await resp.json();
       if (!resultado.ok) return;
+      facturasProveedor = resultado.facturas || [];
       pintarFacturas(resultado.facturas);
+      pintarFacturasCancelables();
     } catch (err) {
       // Si falla el historial, no interrumpimos el resto de la página.
     }
@@ -415,7 +455,31 @@
   function claseEstatus(estatus) {
     if (estatus === 'Validada') return 'validada';
     if (estatus === 'Rechazada') return 'rechazada';
+    if (estatus === 'Cancelada') return 'cancelada';
     return 'pendiente';
+  }
+
+  function escapar(t) {
+    return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function etiquetaFactura(f) {
+    const nombre = f.folioFactura || (f.folioFiscal ? f.folioFiscal.slice(0, 8).toUpperCase() : f.folioRegistro);
+    return nombre + ' — $' + Number(f.monto).toLocaleString('es-MX', { minimumFractionDigits: 2 }) + ' — emitida ' + new Date(f.fechaEmision).toLocaleDateString('es-MX');
+  }
+
+  // Llena la lista de facturas que SÍ se pueden cancelar (sin pagos y sin cancelación en trámite).
+  function pintarFacturasCancelables() {
+    const sel = document.getElementById('cancelFactura');
+    const previa = sel.value;
+    const cancelables = facturasProveedor.filter(f => f.puedeCancelar);
+    sel.innerHTML = '<option value="">Selecciona...</option>' + cancelables.map(f =>
+      `<option value="${escapar(f.idFactura)}">${escapar(etiquetaFactura(f))}</option>`).join('');
+    if (previa && cancelables.some(f => f.idFactura === previa)) sel.value = previa;
+    const ayuda = document.getElementById('ayudaCancelFactura');
+    ayuda.textContent = cancelables.length === 0
+      ? 'No tienes facturas que se puedan cancelar por aquí en este momento.'
+      : '';
   }
 
   function pintarFacturas(facturas) {
@@ -436,9 +500,70 @@
           <span>Vence: ${new Date(f.vencimiento).toLocaleDateString('es-MX')}</span>
         </div>
         ${f.alertaRFC ? `<div class="alerta-mini">⚠ ${f.alertaRFC}</div>` : ''}
+        ${notaCancelacion(f)}
       </div>
     `).join('');
   }
+
+  function notaCancelacion(f) {
+    const c = f.cancelacion;
+    if (f.estatus === 'Cancelada') return '<div class="nota-cancelacion">Factura cancelada. Ya no se considera para pago.</div>';
+    if (!c) return '';
+    if (c.estatus === 'Pendiente de validar') return `<div class="nota-cancelacion">Cancelación ${escapar(c.folio)} enviada — pendiente de validar.</div>`;
+    if (c.estatus === 'Rechazada') return `<div class="nota-cancelacion rechazo">Tu cancelación ${escapar(c.folio)} fue rechazada: ${escapar(c.motivoRechazo || 'sin motivo indicado')}. Puedes volver a enviarla.</div>`;
+    return '';
+  }
+
+  document.getElementById('cancelMotivo').addEventListener('change', (e) => {
+    document.getElementById('ayudaCancelMotivo').style.display = e.target.value === '01' ? 'block' : 'none';
+  });
+
+  document.getElementById('formCancelacion').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btnEnviarCancelacion');
+    const mensaje = document.getElementById('mensajeCancelacion');
+    const colorNormalBtn = getComputedStyle(document.documentElement).getPropertyValue('--azul').trim();
+    btn.disabled = true;
+    btn.textContent = '⏳ Enviando...';
+    btn.style.background = '#9aa5ad';
+    mensaje.style.display = 'none';
+
+    try {
+      const facturaId = document.getElementById('cancelFactura').value;
+      const motivo = document.getElementById('cancelMotivo').value;
+      const pdfFile = document.getElementById('cancelPdf').files[0];
+      const xmlFile = document.getElementById('cancelXml').files[0];
+      if (!facturaId || !motivo) throw new Error('Elige la factura y el motivo de cancelación.');
+      if (!pdfFile || !xmlFile) throw new Error('Sube el acuse en PDF y en XML (los dos son necesarios).');
+
+      const [pdfBase64, xmlTexto] = await Promise.all([archivoABase64(pdfFile), archivoATexto(xmlFile)]);
+
+      const resp = await esperarMinimo(fetch(URL_APPS_SCRIPT, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'registrarCancelacion', token: token, facturaId: facturaId, motivo: motivo, pdfBase64: pdfBase64, xmlTexto: xmlTexto })
+      }), 600);
+      const resultado = await resp.json();
+
+      if (resultado.ok) {
+        mensaje.className = 'mensaje exito';
+        mensaje.textContent = 'Cancelación recibida correctamente (folio ' + resultado.folio + '). Queda pendiente de validación.';
+        document.getElementById('formCancelacion').reset();
+        document.getElementById('ayudaCancelMotivo').style.display = 'none';
+        cargarFacturas();
+      } else {
+        mensaje.className = 'mensaje error';
+        mensaje.textContent = resultado.error || 'Ocurrió un error, intenta de nuevo.';
+      }
+    } catch (err) {
+      mensaje.className = 'mensaje error';
+      mensaje.textContent = err.message || 'No se pudo enviar la cancelación. Intenta más tarde.';
+    }
+
+    mensaje.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Enviar cancelación';
+    btn.style.background = colorNormalBtn;
+  });
 
   // ====== COMPLEMENTOS DE PAGO PENDIENTES ======
 
